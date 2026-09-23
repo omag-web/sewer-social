@@ -20,7 +20,7 @@ export const EVENT = {
 
   // White logo, shown on the dark headers. Path is relative to the site root.
   logo: "images/Sewer Expo Logo - white.png",
-  prompt: "What's one idea you're taking home to your town?",
+  prompt: "Share a highlight, a photo, or an idea you're taking home.",
 
   // Public URL of the posting page (index.html). Leave "" to auto-detect
   // from wherever wall.html is hosted. Set it if you use a short redirect
