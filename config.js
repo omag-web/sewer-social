@@ -5,12 +5,12 @@
 // ─────────────────────────────────────────────────────────────
 
 export const firebaseConfig = {
-  apiKey: "PASTE_API_KEY",
-  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-  projectId: "PASTE_PROJECT_ID",
-  storageBucket: "PASTE_PROJECT_ID.appspot.com",
-  messagingSenderId: "PASTE_SENDER_ID",
-  appId: "PASTE_APP_ID"
+  apiKey: "AIzaSyBO0Sk_lzPrnK5cZABusQBDas_wjde3gZk",
+  authDomain: "sewer-expo-social-wall.firebaseapp.com",
+  projectId: "sewer-expo-social-wall",
+  storageBucket: "sewer-expo-social-wall.firebasestorage.app",
+  messagingSenderId: "403538112744",
+  appId: "1:403538112744:web:3eb13e389c35a0cece195d"
 };
 
 export const EVENT = {
