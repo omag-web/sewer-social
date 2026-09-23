@@ -42,6 +42,7 @@
     top: 0;
     z-index: 5;
   }
+  header .logo { display: block; height: 40px; width: auto; }
   header h1 { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 30px; margin: 0; line-height: 1; }
   header .spacer { flex: 1; }
   header a { color: #b3aca4; font-weight: 600; }
@@ -106,6 +107,14 @@
   .item .msg { margin: 0; font-size: 19px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
   .item .meta { margin: 10px 0 0; color: var(--steel); font-size: 15px; }
   .item .meta strong { color: var(--ink); }
+  .item img.photo {
+    display: block;
+    max-width: 100%;
+    max-height: 320px;
+    border-radius: 6px;
+    margin: 0 0 12px;
+  }
+  .wall .item img.photo { max-height: 160px; }
   .flags { margin: 10px 0 0; font-weight: 600; font-size: 15px; color: #8a5424; }
   .actions { display: flex; gap: 10px; margin-top: 14px; }
   .blank {
@@ -121,6 +130,7 @@
 </head>
 <body>
 <header>
+  <img class="logo" id="logo" alt="" hidden>
   <h1>Expo Wall moderation</h1>
   <span class="spacer"></span>
   <a href="./wall.html" target="_blank" rel="noopener">Open wall display</a>
@@ -141,7 +151,7 @@
 <main class="board" id="board">
   <section class="col">
     <h2 class="cond" id="pendingHead">Waiting for review</h2>
-    <p class="hint">Oldest first. Highlighted posts contain a link or a flagged word.</p>
+    <p class="hint">Oldest first. Highlighted posts have a photo, a link, or a flagged word, and are skipped by "Approve all unflagged."</p>
     <div class="list" id="pending"></div>
   </section>
   <section class="col wall">
@@ -165,6 +175,21 @@
   const db = getFirestore(app);
   const $ = (id) => document.getElementById(id);
   $("wallCount").textContent = EVENT.wallCount;
+  if (EVENT.logo) {
+    const logo = $("logo");
+    logo.alt = EVENT.eventLine1;
+    logo.onload = () => { logo.hidden = false; };
+    logo.src = encodeURI(EVENT.logo);
+  }
+
+  const hasPhoto = (p) => typeof p.image === "string" && p.image.startsWith("data:image/jpeg;base64,");
+  function photoEl(p) {
+    const img = document.createElement("img");
+    img.className = "photo";
+    img.src = p.image;
+    img.alt = "Attached photo";
+    return img;
+  }
 
   let pending = [];
   let unsubs = [];
@@ -178,6 +203,7 @@
     const words = text.toLowerCase().match(/[a-z']+/g) || [];
     const hit = words.filter((w) => flagSet.has(w));
     if (hit.length) out.push(`Flagged word: ${[...new Set(hit)].join(", ")}`);
+    if (hasPhoto(p)) out.push("Has a photo, check it before approving");
     return out;
   }
 
@@ -201,12 +227,14 @@
 
   // ── Actions ─────────────────────────────────────────────
   function addApprove(batch, p) {
-    batch.set(doc(db, "wall", p.id), {
+    const entry = {
       name: p.name || "",
       org: p.org || "",
       message: p.message || "",
       approvedAt: serverTimestamp()
-    });
+    };
+    if (hasPhoto(p)) entry.image = p.image;
+    batch.set(doc(db, "wall", p.id), entry);
     batch.update(doc(db, "posts", p.id), { status: "approved" });
   }
 
@@ -266,6 +294,7 @@
       const flags = flagsFor(p);
       const item = document.createElement("article");
       item.className = "item" + (flags.length ? " flagged" : "");
+      if (hasPhoto(p)) item.appendChild(photoEl(p));
 
       const msg = document.createElement("p");
       msg.className = "msg";
@@ -309,6 +338,7 @@
     posts.forEach((p) => {
       const item = document.createElement("article");
       item.className = "item";
+      if (hasPhoto(p)) item.appendChild(photoEl(p));
       const msg = document.createElement("p");
       msg.className = "msg";
       msg.textContent = p.message;
