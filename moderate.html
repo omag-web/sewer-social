@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Moderate the Expo Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy-deep: #10263d;
+    --navy: #3a6a9a;
+    --paper: #f5f7f9;
+    --hivis: #f5c518;
+    --ink: #14212e;
+    --steel: #5d7488;
+    --line: #d3dde7;
+    --danger: #b3261e;
+    --flag-bg: #fff4d1;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: Barlow, "Segoe UI", system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+  .cond { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; }
+  header {
+    background: var(--navy-deep);
+    color: #fff;
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 20px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+    border-bottom: 4px solid var(--hivis);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  header h1 { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 30px; margin: 0; line-height: 1; }
+  header .spacer { flex: 1; }
+  header a { color: #c3d3e2; font-weight: 600; }
+  button {
+    font: inherit;
+    font-weight: 600;
+    font-size: 16px;
+    padding: 9px 16px;
+    border-radius: 6px;
+    border: 2px solid var(--navy-deep);
+    background: var(--navy-deep);
+    color: #fff;
+    cursor: pointer;
+  }
+  button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--hivis); outline-offset: 2px; }
+  button:disabled { opacity: .5; cursor: default; }
+  button.ghost { background: transparent; color: var(--navy-deep); }
+  button.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+  header button { border-color: #fff; }
+  header button.ghost { color: #fff; }
+  header button.bulk { background: var(--hivis); color: var(--ink); border-color: var(--hivis); }
+
+  /* Sign in */
+  .signin {
+    max-width: 400px;
+    margin: 64px auto;
+    padding: 28px;
+    background: #fff;
+    border-radius: 8px;
+    border-top: 6px solid var(--navy-deep);
+  }
+  .signin h2 { margin: 0 0 18px; font-size: 32px; }
+  .signin label { display: block; font-weight: 600; margin: 14px 0 6px; }
+  .signin input {
+    width: 100%; font: inherit; font-size: 17px; padding: 10px 12px;
+    border: 2px solid var(--line); border-radius: 6px;
+  }
+  .signin button { width: 100%; margin-top: 22px; font-size: 18px; padding: 12px; }
+  .error { color: var(--danger); font-weight: 600; min-height: 1.3em; margin: 12px 0 0; }
+
+  /* Board */
+  .board {
+    display: none;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 28px;
+    padding: 24px 20px 48px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .board.show { display: grid; }
+  @media (max-width: 860px) { .board { grid-template-columns: 1fr; } }
+  .col h2 { font-size: 28px; margin: 0 0 4px; }
+  .col .hint { margin: 0 0 16px; color: var(--steel); font-size: 15px; }
+  .list { display: flex; flex-direction: column; gap: 12px; }
+  .item {
+    background: #fff;
+    border-radius: 8px;
+    border-left: 6px solid var(--navy);
+    padding: 16px 18px;
+  }
+  .item.flagged { border-left-color: var(--hivis); background: var(--flag-bg); }
+  .item .msg { margin: 0; font-size: 19px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+  .item .meta { margin: 10px 0 0; color: var(--steel); font-size: 15px; }
+  .item .meta strong { color: var(--ink); }
+  .flags { margin: 10px 0 0; font-weight: 600; font-size: 15px; color: #7a5a00; }
+  .actions { display: flex; gap: 10px; margin-top: 14px; }
+  .blank {
+    border: 2px dashed var(--line);
+    border-radius: 8px;
+    padding: 28px 18px;
+    color: var(--steel);
+    text-align: center;
+  }
+  .wall .item { border-left-color: var(--hivis); }
+  .wall .item .msg { font-size: 17px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Expo Wall moderation</h1>
+  <span class="spacer"></span>
+  <a href="./wall.html" target="_blank" rel="noopener">Open wall display</a>
+  <button type="button" class="bulk" id="approveAll" hidden>Approve all unflagged</button>
+  <button type="button" class="ghost" id="signOut" hidden>Sign out</button>
+</header>
+
+<form class="signin" id="signin">
+  <h2 class="cond">Sign in</h2>
+  <label for="email">Email</label>
+  <input type="email" id="email" autocomplete="username" required>
+  <label for="password">Password</label>
+  <input type="password" id="password" autocomplete="current-password" required>
+  <button type="submit" id="signinBtn">Sign in</button>
+  <p class="error" id="signinError" role="alert"></p>
+</form>
+
+<main class="board" id="board">
+  <section class="col">
+    <h2 class="cond" id="pendingHead">Waiting for review</h2>
+    <p class="hint">Oldest first. Highlighted posts contain a link or a flagged word.</p>
+    <div class="list" id="pending"></div>
+  </section>
+  <section class="col wall">
+    <h2 class="cond">On the wall now</h2>
+    <p class="hint">Newest first. The display shows the top <span id="wallCount"></span>.</p>
+    <div class="list" id="onWall"></div>
+  </section>
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    getFirestore, collection, query, where, orderBy, limit, onSnapshot,
+    doc, writeBatch, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { firebaseConfig, EVENT } from "./config.js";
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const $ = (id) => document.getElementById(id);
+  $("wallCount").textContent = EVENT.wallCount;
+
+  let pending = [];
+  let unsubs = [];
+
+  // ── Flagging ────────────────────────────────────────────
+  const flagSet = new Set(EVENT.flagWords.map((w) => w.toLowerCase()));
+  function flagsFor(p) {
+    const text = `${p.message || ""} ${p.name || ""} ${p.org || ""}`;
+    const out = [];
+    if (/https?:|www\.|\.(com|net|org|io|ly|co|gg|me)\b/i.test(text)) out.push("Contains a link");
+    const words = text.toLowerCase().match(/[a-z']+/g) || [];
+    const hit = words.filter((w) => flagSet.has(w));
+    if (hit.length) out.push(`Flagged word: ${[...new Set(hit)].join(", ")}`);
+    return out;
+  }
+
+  function timeAgo(ts) {
+    if (!ts || !ts.toDate) return "just now";
+    const s = Math.round((Date.now() - ts.toDate().getTime()) / 1000);
+    if (s < 60) return "just now";
+    if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+    return ts.toDate().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+
+  function metaLine(p, ts) {
+    const meta = document.createElement("p");
+    meta.className = "meta";
+    const who = document.createElement("strong");
+    who.textContent = p.name || "No name";
+    meta.appendChild(who);
+    meta.appendChild(document.createTextNode(`${p.org ? ", " + p.org : ""}  (${timeAgo(ts)})`));
+    return meta;
+  }
+
+  // ── Actions ─────────────────────────────────────────────
+  function addApprove(batch, p) {
+    batch.set(doc(db, "wall", p.id), {
+      name: p.name || "",
+      org: p.org || "",
+      message: p.message || "",
+      approvedAt: serverTimestamp()
+    });
+    batch.update(doc(db, "posts", p.id), { status: "approved" });
+  }
+
+  async function run(btns, fn) {
+    btns.forEach((b) => (b.disabled = true));
+    try { await fn(); }
+    catch (err) { console.error(err); alert("That change didn't save. Check your connection and try again."); btns.forEach((b) => (b.disabled = false)); }
+  }
+
+  function approve(p, btns) {
+    return run(btns, () => { const b = writeBatch(db); addApprove(b, p); return b.commit(); });
+  }
+  function reject(p, btns) {
+    return run(btns, () => { const b = writeBatch(db); b.update(doc(db, "posts", p.id), { status: "rejected" }); return b.commit(); });
+  }
+  function removeFromWall(p, btns) {
+    return run(btns, () => {
+      const b = writeBatch(db);
+      b.delete(doc(db, "wall", p.id));
+      b.update(doc(db, "posts", p.id), { status: "removed" });
+      return b.commit();
+    });
+  }
+
+  $("approveAll").addEventListener("click", () => {
+    const clean = pending.filter((p) => !flagsFor(p).length);
+    if (!clean.length) return;
+    if (!confirm(`Approve ${clean.length} unflagged post${clean.length === 1 ? "" : "s"}?`)) return;
+    run([$("approveAll")], async () => {
+      // Firestore batches cap at 500 writes; 2 writes per post
+      for (let i = 0; i < clean.length; i += 200) {
+        const b = writeBatch(db);
+        clean.slice(i, i + 200).forEach((p) => addApprove(b, p));
+        await b.commit();
+      }
+      $("approveAll").disabled = false;
+    });
+  });
+
+  // ── Rendering ───────────────────────────────────────────
+  function renderPending() {
+    const list = $("pending");
+    list.innerHTML = "";
+    $("pendingHead").textContent = `Waiting for review (${pending.length})`;
+    document.title = pending.length ? `(${pending.length}) Moderate the Expo Wall` : "Moderate the Expo Wall";
+    $("approveAll").hidden = !pending.some((p) => !flagsFor(p).length);
+
+    if (!pending.length) {
+      const blank = document.createElement("div");
+      blank.className = "blank";
+      blank.textContent = "Nothing waiting. New posts appear here automatically.";
+      list.appendChild(blank);
+      return;
+    }
+
+    pending.forEach((p) => {
+      const flags = flagsFor(p);
+      const item = document.createElement("article");
+      item.className = "item" + (flags.length ? " flagged" : "");
+
+      const msg = document.createElement("p");
+      msg.className = "msg";
+      msg.textContent = p.message;
+      item.append(msg, metaLine(p, p.createdAt));
+
+      if (flags.length) {
+        const f = document.createElement("p");
+        f.className = "flags";
+        f.textContent = flags.join(". ");
+        item.appendChild(f);
+      }
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      const yes = document.createElement("button");
+      yes.type = "button";
+      yes.textContent = "Approve";
+      const no = document.createElement("button");
+      no.type = "button";
+      no.className = "danger";
+      no.textContent = "Reject";
+      yes.addEventListener("click", () => approve(p, [yes, no]));
+      no.addEventListener("click", () => reject(p, [yes, no]));
+      actions.append(yes, no);
+      item.appendChild(actions);
+      list.appendChild(item);
+    });
+  }
+
+  function renderWall(posts) {
+    const list = $("onWall");
+    list.innerHTML = "";
+    if (!posts.length) {
+      const blank = document.createElement("div");
+      blank.className = "blank";
+      blank.textContent = "The wall is empty. Approved posts show here.";
+      list.appendChild(blank);
+      return;
+    }
+    posts.forEach((p) => {
+      const item = document.createElement("article");
+      item.className = "item";
+      const msg = document.createElement("p");
+      msg.className = "msg";
+      msg.textContent = p.message;
+      item.append(msg, metaLine(p, p.approvedAt));
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      const rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "danger";
+      rm.textContent = "Remove from wall";
+      rm.addEventListener("click", () => {
+        if (confirm("Remove this post from the wall?")) removeFromWall(p, [rm]);
+      });
+      actions.appendChild(rm);
+      item.appendChild(actions);
+      list.appendChild(item);
+    });
+  }
+
+  // ── Auth + listeners ────────────────────────────────────
+  function denied(err) {
+    console.error(err);
+    if (err.code === "permission-denied") {
+      alert("This account isn't on the moderator list. Add its email to firestore.rules and publish the rules.");
+    }
+  }
+
+  function start() {
+    unsubs.push(onSnapshot(
+      query(collection(db, "posts"), where("status", "==", "pending")),
+      (snap) => {
+        pending = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (a.createdAt?.toMillis?.() ?? Infinity) - (b.createdAt?.toMillis?.() ?? Infinity));
+        renderPending();
+      },
+      denied
+    ));
+    unsubs.push(onSnapshot(
+      query(collection(db, "wall"), orderBy("approvedAt", "desc"), limit(50)),
+      (snap) => renderWall(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      denied
+    ));
+  }
+
+  function stop() {
+    unsubs.forEach((u) => u());
+    unsubs = [];
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    const inside = !!user;
+    $("signin").style.display = inside ? "none" : "block";
+    $("board").classList.toggle("show", inside);
+    $("signOut").hidden = !inside;
+    if (!inside) $("approveAll").hidden = true;
+    stop();
+    if (inside) start();
+  });
+
+  $("signin").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("signinError").textContent = "";
+    $("signinBtn").disabled = true;
+    try {
+      await signInWithEmailAndPassword(auth, $("email").value.trim(), $("password").value);
+    } catch (err) {
+      console.error(err);
+      $("signinError").textContent = "Email or password is incorrect.";
+    } finally {
+      $("signinBtn").disabled = false;
+    }
+  });
+
+  $("signOut").addEventListener("click", () => signOut(auth));
+
+  // Keep "x min ago" fresh
+  setInterval(() => { if (pending.length) renderPending(); }, 60000);
+</script>
+</body>
+</html>
