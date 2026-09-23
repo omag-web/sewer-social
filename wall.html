@@ -14,7 +14,8 @@
     web object it lands in, so it looks identical at any size.
     URL options:
       ?clear=1   transparent background (use ProPresenter's own background)
-    Full screen: click the button (appears when you move the mouse),
+      ?fs=0      hide the full-screen icon entirely
+    Full screen: click the faint icon in the top-right corner,
     double-click anywhere, or press F.
   */
   :root {
@@ -65,7 +66,7 @@
     display: flex;
     flex-direction: column;
   }
-  .logo { display: block; max-width: 100%; max-height: 120px; width: auto; height: auto; margin: 0; }
+  .logo { display: block; align-self: flex-start; max-width: 100%; max-height: 120px; width: auto; height: auto; object-fit: contain; margin: 0; }
   .event { margin: 0; font-size: 24px; line-height: 1.35; color: var(--steel-light); font-weight: 500; }
   .title {
     font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
@@ -213,28 +214,32 @@
   }
   .empty p { font-size: 40px; line-height: 1.25; margin: 0; color: var(--steel-light); max-width: 20ch; }
 
-  /* Full-screen control: shows on mouse movement, hides when idle */
+  /* Full-screen control: small, faint icon in the corner.
+     Brightens when the mouse moves, full strength on hover. */
   body.awake { cursor: default; }
   .fs-btn {
     position: fixed;
-    top: 16px;
-    right: 16px;
+    top: 10px;
+    right: 10px;
     z-index: 10;
-    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
-    font-weight: 700;
-    font-size: 20px;
-    padding: 10px 18px;
+    width: 34px;
+    height: 34px;
+    padding: 7px;
     border: 0;
     border-radius: 6px;
-    background: var(--accent);
-    color: var(--ink);
+    background: transparent;
+    color: #fff;
     cursor: pointer;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .3s;
+    opacity: .12;
+    transition: opacity .3s, background-color .3s;
   }
-  body.awake .fs-btn { opacity: 1; pointer-events: auto; }
-  .fs-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; opacity: 1; pointer-events: auto; }
+  .fs-btn svg { display: block; width: 20px; height: 20px; }
+  body.awake .fs-btn { opacity: .45; }
+  .fs-btn:hover, .fs-btn:focus-visible { opacity: 1; background: rgba(255,255,255,.12); }
+  .fs-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .fs-btn .i-exit { display: none; }
+  .fs-btn.is-full .i-enter { display: none; }
+  .fs-btn.is-full .i-exit { display: block; }
 
   .status {
     position: absolute;
@@ -266,7 +271,10 @@
   <section class="posts" id="posts" aria-live="polite"></section>
   <div class="status" id="status">Reconnecting…</div>
 </div>
-<button type="button" class="fs-btn" id="fsBtn">Full screen</button>
+<button type="button" class="fs-btn" id="fsBtn" aria-label="Full screen" title="Full screen (F)">
+  <svg class="i-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+  <svg class="i-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+</button>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -297,7 +305,13 @@
       (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
     }
   }
-  function syncFsLabel() { fsBtn.textContent = fsEl() ? "Exit full screen" : "Full screen"; }
+  function syncFsLabel() {
+    const full = !!fsEl();
+    fsBtn.classList.toggle("is-full", full);
+    fsBtn.setAttribute("aria-label", full ? "Exit full screen" : "Full screen");
+    fsBtn.title = full ? "Exit full screen (F)" : "Full screen (F)";
+  }
+  if (params.get("fs") === "0") fsBtn.remove(); // e.g. wall.html?fs=0 for ProPresenter
   if (fsSupported) {
     fsBtn.addEventListener("click", toggleFullscreen);
     document.addEventListener("dblclick", toggleFullscreen);
@@ -306,7 +320,7 @@
     });
     document.addEventListener("fullscreenchange", syncFsLabel);
     document.addEventListener("webkitfullscreenchange", syncFsLabel);
-  } else {
+  } else if (fsBtn.isConnected) {
     fsBtn.remove();
   }
 
