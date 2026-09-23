@@ -126,6 +126,7 @@
     border-radius: 8px;
   }
   .card {
+    transition: opacity .5s ease;
     background: var(--card);
     color: var(--ink);
     border-radius: 8px;
@@ -200,7 +201,14 @@
     55%  { opacity: 1; transform: scale(1.02); box-shadow: 0 0 0 10px rgba(212,156,97,.55); }
     100% { opacity: 1; transform: scale(1);   box-shadow: 0 0 0 0 rgba(212,156,97,0); }
   }
-  @media (prefers-reduced-motion: reduce) { .card.enter { animation: none; } }
+  /* Rotation: one card fades out, its replacement fades in */
+  .card.fading { opacity: 0; }
+  .card.fade-in { animation: fadein .6s ease both; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .card.enter, .card.fade-in { animation: none; }
+    .card { transition: none; }
+  }
 
   .empty {
     grid-column: 1 / -1;
@@ -373,9 +381,19 @@
   const grid = document.getElementById("posts");
   const status = document.getElementById("status");
   const db = getFirestore(initializeApp(firebaseConfig));
-  const wallQuery = query(collection(db, "wall"), orderBy("approvedAt", "desc"), limit(EVENT.wallCount));
+  const W = EVENT.wallCount;
+  const POOL = Math.max(W, EVENT.wallPool || 60);
+  const PINNED = Math.min(EVENT.pinnedNewest ?? 3, W);
+  const ROTATE_MS = Math.max(3, EVENT.rotateSeconds || 8) * 1000;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const wallQuery = query(collection(db, "wall"), orderBy("approvedAt", "desc"), limit(POOL));
 
-  let known = null; // Set of ids from the previous render; null until first load
+  let all = [];             // approved posts, newest first
+  let byId = new Map();
+  let shown = [];           // post id in each grid slot (or null)
+  let known = null;         // ids from the previous snapshot; null until first load
+  const lastShown = new Map(); // id -> when it was last put on screen
+  let lastRotatedSlot = -1;
 
   function sizeClass(text) {
     const n = (text || "").length;
@@ -443,9 +461,15 @@
     return card;
   }
 
-  function render(posts) {
+  function emptySlot() {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    return slot;
+  }
+
+  function paintAll(newIds) {
     grid.innerHTML = "";
-    if (!posts.length) {
+    if (!all.length) {
       const empty = document.createElement("div");
       empty.className = "empty";
       const h = document.createElement("h2");
@@ -456,25 +480,91 @@
       grid.appendChild(empty);
       return;
     }
-    for (let i = 0; i < EVENT.wallCount; i++) {
-      const post = posts[i];
+    const now = Date.now();
+    shown.forEach((id, i) => {
+      const post = id ? byId.get(id) : null;
       if (post) {
-        const isNew = known !== null && !known.has(post.id);
-        grid.appendChild(buildCard(post, i === 0, isNew));
+        grid.appendChild(buildCard(post, i === 0, newIds.has(id)));
+        lastShown.set(id, now);
       } else {
-        const slot = document.createElement("div");
-        slot.className = "slot";
-        grid.appendChild(slot);
+        grid.appendChild(emptySlot());
       }
-    }
+    });
   }
+
+  function applySnapshot(posts) {
+    byId = new Map(posts.map((p) => [p.id, p]));
+    const newIds = known === null
+      ? new Set()
+      : new Set(posts.filter((p) => !known.has(p.id)).map((p) => p.id));
+    all = posts;
+
+    if (known === null || newIds.size || posts.length <= W) {
+      // First load, a new post arrived, or everything fits: newest first
+      shown = Array.from({ length: W }, (_, i) => posts[i]?.id ?? null);
+    } else {
+      // A post was removed or edited: keep the current arrangement,
+      // re-pin the newest row, and fill any gaps
+      const next = Array(W).fill(null);
+      for (let i = 0; i < PINNED; i++) next[i] = posts[i]?.id ?? null;
+      const used = new Set(next.filter(Boolean));
+      for (let i = PINNED; i < W; i++) {
+        const id = shown[i];
+        if (id && byId.has(id) && !used.has(id)) { next[i] = id; used.add(id); }
+      }
+      for (let i = PINNED; i < W; i++) {
+        if (next[i]) continue;
+        const p = posts.find((x) => !used.has(x.id));
+        if (p) { next[i] = p.id; used.add(p.id); }
+      }
+      shown = next;
+    }
+
+    paintAll(newIds);
+    known = new Set(posts.map((p) => p.id));
+  }
+
+  function swapSlot(i, post) {
+    const old = grid.children[i];
+    if (!old) return;
+    shown[i] = post.id;
+    lastShown.set(post.id, Date.now());
+    const card = buildCard(post, i === 0, false);
+    if (reduceMotion) { grid.replaceChild(card, old); return; }
+    old.classList.add("fading");
+    setTimeout(() => {
+      if (old.parentNode !== grid) return; // wall repainted mid-fade
+      card.classList.add("fade-in");
+      grid.replaceChild(card, old);
+    }, 500);
+  }
+
+  // Every few seconds, swap one non-pinned card for an older post,
+  // favoring posts that haven't been on screen recently
+  function rotate() {
+    if (all.length <= W || document.hidden) return;
+    const slots = [];
+    for (let i = PINNED; i < W; i++) if (i !== lastRotatedSlot) slots.push(i);
+    if (!slots.length) return;
+    const slot = slots[Math.floor(Math.random() * slots.length)];
+
+    const onScreen = new Set(shown.filter(Boolean));
+    const candidates = all
+      .filter((p) => !onScreen.has(p.id))
+      .sort((a, b) => (lastShown.get(a.id) || 0) - (lastShown.get(b.id) || 0));
+    if (!candidates.length) return;
+    const pool = candidates.slice(0, Math.max(1, Math.ceil(candidates.length / 3)));
+    const next = pool[Math.floor(Math.random() * pool.length)];
+
+    lastRotatedSlot = slot;
+    swapSlot(slot, next);
+  }
+  setInterval(rotate, ROTATE_MS);
 
   function subscribe() {
     onSnapshot(wallQuery, (snap) => {
       status.classList.remove("show");
-      const posts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      render(posts);
-      known = new Set(posts.map((p) => p.id));
+      applySnapshot(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     }, (err) => {
       console.error(err);
       status.classList.add("show");
