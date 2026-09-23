@@ -94,25 +94,14 @@
   .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
   button.danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
 
-  .testing {
+  .toolbar {
     display: none;
-    max-width: 1400px;
-    margin: 0 auto 48px;
-    padding: 0 20px;
+    justify-content: flex-end;
+    padding: 16px 20px 0;
   }
-  .testing.show { display: block; }
-  .testing-box {
-    border: 2px dashed var(--danger);
-    border-radius: 8px;
-    padding: 18px 20px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px 20px;
-  }
-  .testing-box h2 { font-size: 24px; margin: 0; }
-  .testing-box p { margin: 0; color: var(--steel); font-size: 15px; flex: 1 1 280px; }
-  .testing-box button.danger { background: var(--danger); color: #fff; }
+  .toolbar.show { display: flex; }
+  .toolbar button { font-size: 15px; padding: 7px 14px; }
+  .toolbar + .board { padding-top: 4px; }
   header button { border-color: #fff; }
   header button.ghost { color: #fff; }
   header button.bulk { background: var(--accent); color: var(--ink); border-color: var(--accent); }
@@ -200,6 +189,10 @@
   <p class="error" id="signinError" role="alert"></p>
 </form>
 
+<div class="toolbar" id="toolbar">
+  <button type="button" class="danger-solid" id="deleteAll">Delete all posts</button>
+</div>
+
 <main class="board" id="board">
   <section class="col">
     <h2 class="cond" id="pendingHead">Waiting for review</h2>
@@ -213,13 +206,6 @@
   </section>
 </main>
 
-<section class="testing" id="testing">
-  <div class="testing-box">
-    <h2 class="cond">Testing</h2>
-    <p>Permanently deletes every post: waiting, rejected, removed, and on the wall. Use this to clear test posts before the expo.</p>
-    <button type="button" class="danger" id="deleteAll">Delete all posts</button>
-  </div>
-</section>
 
 <dialog class="modal" id="modal" aria-labelledby="modalTitle">
   <div class="modal-card">
@@ -413,7 +399,7 @@
   $("deleteAll").addEventListener("click", async () => {
     const yes = await askConfirm({
       title: "Delete all posts?",
-      body: "This permanently deletes every post: waiting, rejected, removed, and everything on the wall. This can't be undone.",
+      body: "This will delete everything: every post waiting for review, every rejected or removed post, and everything on the wall. It can't be undone.",
       confirmLabel: "Delete everything",
       danger: true,
       requireText: "DELETE"
@@ -599,7 +585,7 @@
     const inside = !!user;
     $("signin").style.display = inside ? "none" : "block";
     $("board").classList.toggle("show", inside);
-    $("testing").classList.toggle("show", inside);
+    $("toolbar").classList.toggle("show", inside);
     $("signOut").hidden = !inside;
     if (!inside) $("approveAll").hidden = true;
     stop();
