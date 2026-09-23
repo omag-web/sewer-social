@@ -10,59 +10,59 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --navy-deep: #10263d;
-    --navy: #3a6a9a;
-    --paper: #f5f7f9;
-    --hivis: #f5c518;
-    --ink: #14212e;
-    --steel: #5d7488;
-    --line: #d3dde7;
+    --base: #181716;
+    --edge: #4a4540;
+    --card: #ffffff;
+    --accent: #d49c61;
+    --ink: #181716;
+    --steel: #6b645c;
+    --line: #ddd8d2;
     --danger: #b3261e;
-    --flag-bg: #fff4d1;
+    --flag-bg: #f8ecdf;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body {
     font-family: Barlow, "Segoe UI", system-ui, sans-serif;
-    background: var(--paper);
+    background: #f4f2ef;
     color: var(--ink);
     min-height: 100vh;
   }
   .cond { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; }
   header {
-    background: var(--navy-deep);
+    background: var(--base);
     color: #fff;
     padding: calc(14px + env(safe-area-inset-top, 0px)) 20px 14px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 12px 20px;
-    border-bottom: 4px solid var(--hivis);
+    border-bottom: 4px solid var(--accent);
     position: sticky;
     top: 0;
     z-index: 5;
   }
   header h1 { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 30px; margin: 0; line-height: 1; }
   header .spacer { flex: 1; }
-  header a { color: #c3d3e2; font-weight: 600; }
+  header a { color: #b3aca4; font-weight: 600; }
   button {
     font: inherit;
     font-weight: 600;
     font-size: 16px;
     padding: 9px 16px;
     border-radius: 6px;
-    border: 2px solid var(--navy-deep);
-    background: var(--navy-deep);
+    border: 2px solid var(--base);
+    background: var(--base);
     color: #fff;
     cursor: pointer;
   }
-  button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--hivis); outline-offset: 2px; }
+  button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   button:disabled { opacity: .5; cursor: default; }
-  button.ghost { background: transparent; color: var(--navy-deep); }
+  button.ghost { background: transparent; color: var(--base); }
   button.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
   header button { border-color: #fff; }
   header button.ghost { color: #fff; }
-  header button.bulk { background: var(--hivis); color: var(--ink); border-color: var(--hivis); }
+  header button.bulk { background: var(--accent); color: var(--ink); border-color: var(--accent); }
 
   /* Sign in */
   .signin {
@@ -71,7 +71,7 @@
     padding: 28px;
     background: #fff;
     border-radius: 8px;
-    border-top: 6px solid var(--navy-deep);
+    border-top: 6px solid var(--base);
   }
   .signin h2 { margin: 0 0 18px; font-size: 32px; }
   .signin label { display: block; font-weight: 600; margin: 14px 0 6px; }
@@ -99,14 +99,14 @@
   .item {
     background: #fff;
     border-radius: 8px;
-    border-left: 6px solid var(--navy);
+    border-left: 6px solid var(--edge);
     padding: 16px 18px;
   }
-  .item.flagged { border-left-color: var(--hivis); background: var(--flag-bg); }
+  .item.flagged { border-left-color: var(--accent); background: var(--flag-bg); }
   .item .msg { margin: 0; font-size: 19px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
   .item .meta { margin: 10px 0 0; color: var(--steel); font-size: 15px; }
   .item .meta strong { color: var(--ink); }
-  .flags { margin: 10px 0 0; font-weight: 600; font-size: 15px; color: #7a5a00; }
+  .flags { margin: 10px 0 0; font-weight: 600; font-size: 15px; color: #8a5424; }
   .actions { display: flex; gap: 10px; margin-top: 14px; }
   .blank {
     border: 2px dashed var(--line);
@@ -115,7 +115,7 @@
     color: var(--steel);
     text-align: center;
   }
-  .wall .item { border-left-color: var(--hivis); }
+  .wall .item { border-left-color: var(--accent); }
   .wall .item .msg { font-size: 17px; }
 </style>
 </head>
