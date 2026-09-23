@@ -65,11 +65,12 @@
     display: flex;
     flex-direction: column;
   }
+  .logo { display: block; max-width: 100%; max-height: 120px; width: auto; height: auto; margin: 0; }
   .event { margin: 0; font-size: 24px; line-height: 1.35; color: var(--steel-light); font-weight: 500; }
   .title {
     font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
     font-weight: 700;
-    font-size: 104px;
+    font-size: 88px;
     line-height: .9;
     margin: 28px 0 0;
     letter-spacing: -.5px;
@@ -93,13 +94,13 @@
   }
   #qr {
     flex: none;
-    width: 240px;
-    height: 240px;
+    width: 224px;
+    height: 224px;
     background: #fff;
-    padding: 14px;
+    padding: 12px;
     border-radius: 4px;
   }
-  #qr img, #qr canvas { width: 212px !important; height: 212px !important; display: block; }
+  #qr img, #qr canvas { width: 200px !important; height: 200px !important; display: block; }
   .scan-text { min-width: 0; }
   .scan-head {
     font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
@@ -159,6 +160,32 @@
   }
   .by strong { font-weight: 700; color: var(--ink); }
   .by span { font-weight: 600; color: var(--steel); }
+
+  /* Photo posts: image fills the card, caption over a dark fade */
+  .card.photo {
+    position: relative;
+    padding: 0;
+    background: var(--base);
+    justify-content: flex-end;
+  }
+  .card.photo.latest { padding-left: 0; }
+  .card.photo img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .card.photo .cap {
+    position: relative;
+    padding: 60px 22px 18px;
+    background: linear-gradient(to top, rgba(24,23,22,.92) 0%, rgba(24,23,22,.75) 55%, rgba(24,23,22,0) 100%);
+    color: #fff;
+  }
+  .card.photo .msg { font-size: 23px; line-height: 1.25; -webkit-line-clamp: 3; }
+  .card.photo .by { padding-top: 8px; font-size: 22px; }
+  .card.photo .by strong { color: #fff; }
+  .card.photo .by span { color: #d8d2cb; }
 
   .card.enter { animation: arrive 900ms cubic-bezier(.2,.8,.2,1) both; }
   @keyframes arrive {
@@ -224,6 +251,7 @@
 <body>
 <div id="stage">
   <aside class="rail">
+    <img class="logo" id="logo" alt="" hidden>
     <p class="event" id="event"></p>
     <h1 class="title" id="title">The Expo Wall</h1>
     <p class="prompt" id="prompt"></p>
@@ -300,6 +328,15 @@
     document.getElementById("event").appendChild(document.createTextNode(line));
   });
   document.getElementById("title").textContent = EVENT.wallTitle;
+  if (EVENT.logo) {
+    const logo = document.getElementById("logo");
+    logo.alt = EVENT.eventLine1;
+    logo.onload = () => {
+      logo.hidden = false;
+      document.getElementById("event").hidden = true; // logo carries the event name
+    };
+    logo.src = encodeURI(EVENT.logo);
+  }
   document.getElementById("prompt").textContent = EVENT.prompt;
 
   const postUrl = EVENT.postUrl || new URL("./", location.href).href;
@@ -327,15 +364,7 @@
     return "s3";
   }
 
-  function buildCard(post, isLatest, isNew) {
-    const card = document.createElement("article");
-    card.className = "card" + (isLatest ? " latest" : "") + (isNew ? " enter" : "");
-
-    const msg = document.createElement("p");
-    msg.className = "msg " + sizeClass(post.message);
-    msg.textContent = post.message || "";
-    card.appendChild(msg);
-
+  function byline(post) {
     const by = document.createElement("p");
     by.className = "by";
     const name = (post.name || "").trim();
@@ -355,7 +384,37 @@
       span.textContent = "Expo attendee";
       by.appendChild(span);
     }
-    card.appendChild(by);
+    return by;
+  }
+
+  function buildCard(post, isLatest, isNew) {
+    const card = document.createElement("article");
+    const hasPhoto = typeof post.image === "string" && post.image.startsWith("data:image/jpeg;base64,");
+    card.className = "card" + (hasPhoto ? " photo" : "") + (isLatest ? " latest" : "") + (isNew ? " enter" : "");
+
+    if (hasPhoto) {
+      const img = document.createElement("img");
+      img.src = post.image;
+      img.alt = "";
+      card.appendChild(img);
+      const cap = document.createElement("div");
+      cap.className = "cap";
+      if (post.message) {
+        const msg = document.createElement("p");
+        msg.className = "msg";
+        msg.textContent = post.message;
+        cap.appendChild(msg);
+      }
+      cap.appendChild(byline(post));
+      card.appendChild(cap);
+      return card;
+    }
+
+    const msg = document.createElement("p");
+    msg.className = "msg " + sizeClass(post.message);
+    msg.textContent = post.message || "";
+    card.appendChild(msg);
+    card.appendChild(byline(post));
     return card;
   }
 
