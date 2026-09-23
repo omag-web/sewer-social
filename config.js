@@ -29,6 +29,12 @@ export const EVENT = {
 
   maxLength: 200,   // characters per post (must match firestore.rules)
   wallCount: 9,     // posts on screen at once (3 x 3 grid)
+
+  // Rotation: the newest posts stay pinned to the top row; the other slots
+  // cycle through older approved posts, one card at a time.
+  pinnedNewest: 3,    // newest posts that always stay on screen (top row)
+  rotateSeconds: 8,   // how often one of the other cards swaps
+  wallPool: 60,       // how many recent approved posts are in the rotation
   cooldownSeconds: 30, // per-phone wait between posts
 
   // Photos are resized and compressed on the phone before upload, then
