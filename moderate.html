@@ -208,7 +208,7 @@
   </section>
   <section class="col wall">
     <h2 class="cond">On the wall now</h2>
-    <p class="hint">Newest first. The display shows the top <span id="wallCount"></span>.</p>
+    <p class="hint">Newest first. The display keeps the newest <span id="pinnedCount"></span> in its top row and rotates the rest of these through the other slots.</p>
     <div class="list" id="onWall"></div>
   </section>
 </main>
@@ -249,7 +249,7 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
   const $ = (id) => document.getElementById(id);
-  $("wallCount").textContent = EVENT.wallCount;
+  $("pinnedCount").textContent = EVENT.pinnedNewest ?? 3;
   if (EVENT.logo) {
     const logo = $("logo");
     logo.alt = EVENT.eventLine1;
@@ -584,7 +584,7 @@
       denied
     ));
     unsubs.push(onSnapshot(
-      query(collection(db, "wall"), orderBy("approvedAt", "desc"), limit(50)),
+      query(collection(db, "wall"), orderBy("approvedAt", "desc"), limit(Math.max(50, EVENT.wallPool || 60))),
       (snap) => renderWall(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
       denied
     ));
