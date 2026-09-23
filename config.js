@@ -17,6 +17,9 @@ export const EVENT = {
   eventLine1: "2026 OMAG Sanitary Sewer Expo",
   eventLine2: "Stride Bank Center, Enid",
   wallTitle: "The Expo Wall",
+
+  // White logo, shown on the dark headers. Path is relative to the site root.
+  logo: "images/Sewer Expo Logo - white.png",
   prompt: "What's one idea you're taking home to your town?",
 
   // Public URL of the posting page (index.html). Leave "" to auto-detect
@@ -27,6 +30,11 @@ export const EVENT = {
   maxLength: 200,   // characters per post (must match firestore.rules)
   wallCount: 9,     // posts on screen at once (3 x 3 grid)
   cooldownSeconds: 30, // per-phone wait between posts
+
+  // Photos are resized and compressed on the phone before upload, then
+  // stored with the post. Keep these modest: each post must stay under 1 MB.
+  photoMaxSide: 1200,  // longest edge in pixels
+  photoMaxBytes: 650000, // target size of the encoded photo
 
   // Moderator page highlights posts containing these words. Nothing is
   // auto-rejected; this just speeds up review. Add to it freely.
