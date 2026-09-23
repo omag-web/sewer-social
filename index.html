@@ -39,6 +39,7 @@
     padding: calc(22px + env(safe-area-inset-top, 0px)) 22px 24px;
     border-bottom: 6px solid var(--accent);
   }
+  .logo { display: block; max-width: 220px; max-height: 72px; width: auto; height: auto; margin: 0 0 14px; }
   .event { margin: 0 0 8px; font-size: 15px; line-height: 1.35; color: #b3aca4; }
   h1 {
     font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
@@ -116,11 +117,41 @@
     white-space: pre-wrap;
     word-break: break-word;
   }
+  .photo-pick {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .photo-pick input[type="file"] { position: absolute; left: -10000px; width: 1px; height: 1px; opacity: 0; }
+  .pick-btn {
+    display: inline-block;
+    font-weight: 600;
+    font-size: 17px;
+    padding: 10px 16px;
+    border: 2px solid var(--base);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .photo-pick input[type="file"]:focus-visible + .pick-btn { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .photo-status { font-size: 15px; color: var(--steel); }
+  .preview { display: none; margin-top: 12px; }
+  .preview.show { display: block; }
+  .preview img { display: block; max-width: 100%; max-height: 260px; border-radius: 6px; border: 2px solid var(--line); }
+  .preview button {
+    width: auto; margin-top: 10px; padding: 8px 14px; font-size: 17px;
+    font-family: Barlow, "Segoe UI", system-ui, sans-serif; font-weight: 600;
+    background: transparent; color: var(--danger); border: 2px solid var(--danger);
+  }
+  .echo img { display: block; max-width: 100%; max-height: 220px; border-radius: 4px; margin-bottom: 10px; }
   .secondary { background: transparent; color: var(--base); border: 2px solid var(--base); }
 </style>
 </head>
 <body>
 <header>
+  <img class="logo" id="logo" alt="" hidden>
   <p class="event" id="eventLine"></p>
   <h1 id="wallTitle">The Expo Wall</h1>
 </header>
@@ -130,9 +161,20 @@
     <p class="prompt" id="prompt"></p>
     <p class="sub">Your post shows up on the big screen once a moderator approves it.</p>
 
-    <label for="message">Your post</label>
+    <label for="message">Your post <span class="opt">(or just a photo)</span></label>
     <textarea id="message" name="message" required></textarea>
     <div class="count" id="count" aria-live="polite"></div>
+
+    <label for="photo">Photo <span class="opt">(optional, JPEG or PNG)</span></label>
+    <div class="photo-pick">
+      <input type="file" id="photo" accept="image/jpeg,image/png">
+      <label for="photo" class="pick-btn" id="pickLabel">Add a photo</label>
+      <span class="photo-status" id="photoStatus" aria-live="polite"></span>
+    </div>
+    <div class="preview" id="preview">
+      <img id="previewImg" alt="Your photo">
+      <button type="button" id="removePhoto">Remove photo</button>
+    </div>
 
     <label for="name">Name <span class="opt">(optional)</span></label>
     <input type="text" id="name" name="name" maxlength="40" autocomplete="name">
@@ -147,7 +189,7 @@
 
     <button type="submit" id="submit">Post to the wall</button>
     <p class="error" id="error" role="alert"></p>
-    <p class="note">Keep it clean and on topic. Posts with links or personal attacks won't be approved.</p>
+    <p class="note">Keep it clean and on topic. Posts with links or personal attacks won't be approved. Photos are reviewed before they appear.</p>
   </form>
 
   <section class="done" id="done" aria-live="polite">
@@ -167,6 +209,12 @@
   const $ = (id) => document.getElementById(id);
 
   $("eventLine").textContent = `${EVENT.eventLine1}, ${EVENT.eventLine2}`;
+  if (EVENT.logo) {
+    const logo = $("logo");
+    logo.alt = EVENT.eventLine1;
+    logo.onload = () => { logo.hidden = false; $("eventLine").textContent = EVENT.eventLine2; };
+    logo.src = encodeURI(EVENT.logo);
+  }
   $("wallTitle").textContent = EVENT.wallTitle;
   $("prompt").textContent = EVENT.prompt;
   $("message").maxLength = EVENT.maxLength;
@@ -188,8 +236,86 @@
     return wait > 0 ? Math.ceil(wait / 1000) : 0;
   }
 
+  // ── Photo: resize + re-encode as JPEG on the phone ──────────
+  // Re-drawing through a canvas also strips location/camera metadata.
+  let photoData = "";
+
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode")); };
+      img.src = url;
+    });
+  }
+
+  async function compress(file) {
+    const img = await loadImage(file);
+    let side = EVENT.photoMaxSide;
+    let quality = 0.8;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const scale = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff"; // flatten PNG transparency
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      const data = canvas.toDataURL("image/jpeg", quality);
+      if (data.length <= EVENT.photoMaxBytes) return data;
+      if (quality > 0.55) quality -= 0.1; else side = Math.round(side * 0.8);
+    }
+    throw new Error("too-big");
+  }
+
+  function clearPhoto() {
+    photoData = "";
+    $("photo").value = "";
+    $("preview").classList.remove("show");
+    $("previewImg").removeAttribute("src");
+    $("photoStatus").textContent = "";
+    $("pickLabel").textContent = "Add a photo";
+  }
+
+  $("photo").addEventListener("change", async () => {
+    const file = $("photo").files[0];
+    $("error").textContent = "";
+    if (!file) return;
+    if (!["image/jpeg", "image/png"].includes(file.type)) {
+      clearPhoto();
+      $("error").textContent = "Use a JPEG or PNG photo.";
+      return;
+    }
+    $("photoStatus").textContent = "Preparing photo…";
+    $("submit").disabled = true;
+    try {
+      photoData = await compress(file);
+      $("previewImg").src = photoData;
+      $("preview").classList.add("show");
+      $("photoStatus").textContent = "";
+      $("pickLabel").textContent = "Change photo";
+    } catch (err) {
+      console.error(err);
+      clearPhoto();
+      $("error").textContent = "That photo couldn't be used. Try a different JPEG or PNG.";
+    } finally {
+      $("submit").disabled = false;
+    }
+  });
+  $("removePhoto").addEventListener("click", clearPhoto);
+
   function showDone(message) {
     $("echo").textContent = message;
+    if (photoData) {
+      const img = document.createElement("img");
+      img.src = photoData;
+      img.alt = "";
+      $("echo").prepend(img);
+    }
     $("form").classList.add("hide");
     $("done").classList.add("show");
     window.scrollTo(0, 0);
@@ -203,8 +329,8 @@
     const name = $("name").value.trim().slice(0, 40);
     const org = $("org").value.trim().slice(0, 60);
 
-    if (!message) {
-      $("error").textContent = "Write something before posting.";
+    if (!message && !photoData) {
+      $("error").textContent = "Write something or add a photo before posting.";
       $("message").focus();
       return;
     }
@@ -225,11 +351,9 @@
     $("submit").disabled = true;
     $("submit").textContent = "Posting…";
     try {
-      await addDoc(collection(db, "posts"), {
-        name, org, message,
-        status: "pending",
-        createdAt: serverTimestamp()
-      });
+      const post = { name, org, message, status: "pending", createdAt: serverTimestamp() };
+      if (photoData) post.image = photoData;
+      await addDoc(collection(db, "posts"), post);
       try { localStorage.setItem(COOLDOWN_KEY, String(Date.now())); } catch (e2) {}
       showDone(message);
     } catch (err) {
@@ -243,6 +367,7 @@
 
   $("again").addEventListener("click", () => {
     $("message").value = "";
+    clearPhoto();
     updateCount();
     $("done").classList.remove("show");
     $("form").classList.remove("hide");
