@@ -66,6 +66,34 @@
     padding: 9px 6px; margin-left: auto; text-decoration: underline;
   }
   button.link:hover { color: var(--danger); }
+  /* Dialog */
+  .modal {
+    border: 0;
+    padding: 0;
+    border-radius: 10px;
+    width: min(440px, calc(100vw - 32px));
+    background: #fff;
+    color: var(--ink);
+    box-shadow: 0 24px 60px rgba(24,23,22,.35);
+  }
+  .modal::backdrop { background: rgba(24,23,22,.6); backdrop-filter: blur(2px); }
+  .modal[open] { animation: pop .18s ease-out; }
+  @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .modal[open] { animation: none; } }
+  .modal-card { border-top: 6px solid var(--accent); border-radius: 10px; padding: 22px 24px 20px; }
+  .modal.is-danger .modal-card { border-top-color: var(--danger); }
+  .modal h2 { font-size: 30px; line-height: 1.05; margin: 0 0 10px; }
+  .modal p { margin: 0; font-size: 17px; line-height: 1.45; color: #3d3935; white-space: pre-line; }
+  .modal-field { margin-top: 16px; }
+  .modal-field label { display: block; font-weight: 600; margin-bottom: 6px; }
+  .modal-field input {
+    width: 100%; font: inherit; font-size: 18px; padding: 10px 12px;
+    border: 2px solid var(--line); border-radius: 6px; letter-spacing: .04em;
+  }
+  .modal-field input:focus { outline: none; border-color: var(--danger); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+  button.danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+
   .testing {
     display: none;
     max-width: 1400px;
@@ -193,6 +221,21 @@
   </div>
 </section>
 
+<dialog class="modal" id="modal" aria-labelledby="modalTitle">
+  <div class="modal-card">
+    <h2 class="cond" id="modalTitle"></h2>
+    <p id="modalBody"></p>
+    <div class="modal-field" id="modalField" hidden>
+      <label for="modalInput" id="modalLabel"></label>
+      <input id="modalInput" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="ghost" id="modalCancel">Cancel</button>
+      <button type="button" id="modalOk">OK</button>
+    </div>
+  </div>
+</dialog>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -270,10 +313,69 @@
     batch.update(doc(db, "posts", p.id), { status: "approved" });
   }
 
+  // ── Dialog (replaces the browser's confirm/alert/prompt) ──
+  function openModal({ title, body, confirmLabel = "OK", cancelLabel = "Cancel", danger = false, requireText = "", alertOnly = false }) {
+    return new Promise((resolve) => {
+      const modal = $("modal"), ok = $("modalOk"), cancel = $("modalCancel");
+      const field = $("modalField"), input = $("modalInput");
+
+      $("modalTitle").textContent = title;
+      $("modalBody").textContent = body || "";
+      modal.classList.toggle("is-danger", danger);
+      ok.textContent = confirmLabel;
+      ok.className = danger ? "danger-solid" : "";
+      cancel.textContent = cancelLabel;
+      cancel.hidden = alertOnly;
+
+      field.hidden = !requireText;
+      input.value = "";
+      if (requireText) {
+        $("modalLabel").textContent = `Type ${requireText} to confirm`;
+        ok.disabled = true;
+      } else {
+        ok.disabled = false;
+      }
+
+      const onInput = () => { ok.disabled = input.value.trim() !== requireText; };
+      const onKey = (e) => { if (e.key === "Enter" && !ok.disabled) { e.preventDefault(); finish(true); } };
+      const onCancel = (e) => { e.preventDefault(); finish(false); };      // Esc key
+      const onBackdrop = (e) => { if (e.target === modal) finish(false); };  // click outside
+      const onOk = () => finish(true);
+      const onNo = () => finish(false);
+
+      function finish(value) {
+        input.removeEventListener("input", onInput);
+        input.removeEventListener("keydown", onKey);
+        modal.removeEventListener("cancel", onCancel);
+        modal.removeEventListener("click", onBackdrop);
+        ok.removeEventListener("click", onOk);
+        cancel.removeEventListener("click", onNo);
+        modal.close();
+        resolve(alertOnly ? true : value);
+      }
+
+      input.addEventListener("input", onInput);
+      input.addEventListener("keydown", onKey);
+      modal.addEventListener("cancel", onCancel);
+      modal.addEventListener("click", onBackdrop);
+      ok.addEventListener("click", onOk);
+      cancel.addEventListener("click", onNo);
+
+      modal.showModal();
+      (requireText ? input : alertOnly ? ok : cancel).focus();
+    });
+  }
+  const askConfirm = (opts) => openModal(opts);
+  const notice = (title, body) => openModal({ title, body, confirmLabel: "OK", alertOnly: true });
+
   async function run(btns, fn) {
     btns.forEach((b) => (b.disabled = true));
     try { await fn(); }
-    catch (err) { console.error(err); alert("That change didn't save. Check your connection and try again."); btns.forEach((b) => (b.disabled = false)); }
+    catch (err) {
+      console.error(err);
+      btns.forEach((b) => (b.disabled = false));
+      notice("That didn't save", "Check your connection and try again.");
+    }
   }
 
   function approve(p, btns) {
@@ -292,8 +394,14 @@
   }
 
   // Permanent delete: removes the submission and its wall copy
-  function deletePost(p, btns) {
-    if (!confirm("Delete this post permanently? This can't be undone.")) return;
+  async function deletePost(p, btns) {
+    const yes = await askConfirm({
+      title: "Delete this post?",
+      body: "It's removed from the queue and the wall permanently. This can't be undone.",
+      confirmLabel: "Delete post",
+      danger: true
+    });
+    if (!yes) return;
     return run(btns, () => {
       const b = writeBatch(db);
       b.delete(doc(db, "posts", p.id));
@@ -303,8 +411,14 @@
   }
 
   $("deleteAll").addEventListener("click", async () => {
-    const typed = prompt('This permanently deletes every post, including everything on the wall.\n\nType DELETE to confirm.');
-    if (typed !== "DELETE") return;
+    const yes = await askConfirm({
+      title: "Delete all posts?",
+      body: "This permanently deletes every post: waiting, rejected, removed, and everything on the wall. This can't be undone.",
+      confirmLabel: "Delete everything",
+      danger: true,
+      requireText: "DELETE"
+    });
+    if (!yes) return;
     const btn = $("deleteAll");
     btn.disabled = true;
     btn.textContent = "Deleting…";
@@ -319,20 +433,26 @@
         refs.slice(i, i + 400).forEach((r) => b.delete(r));
         await b.commit();
       }
-      alert(`Deleted ${posts.size} post${posts.size === 1 ? "" : "s"}.`);
+      notice("All posts deleted", `${posts.size} post${posts.size === 1 ? " was" : "s were"} deleted. The wall is empty.`);
     } catch (err) {
       console.error(err);
-      alert("Some posts didn't delete. Check your connection and try again.");
+      notice("Some posts didn't delete", "Check your connection and run Delete all posts again.");
     } finally {
       btn.disabled = false;
       btn.textContent = "Delete all posts";
     }
   });
 
-  $("approveAll").addEventListener("click", () => {
+  $("approveAll").addEventListener("click", async () => {
     const clean = pending.filter((p) => !flagsFor(p).length);
     if (!clean.length) return;
-    if (!confirm(`Approve ${clean.length} unflagged post${clean.length === 1 ? "" : "s"}?`)) return;
+    const n = clean.length;
+    const yes = await askConfirm({
+      title: `Approve ${n} post${n === 1 ? "" : "s"}?`,
+      body: `${n === 1 ? "It goes" : "They go"} on the wall right away. Posts with a photo, a link, or a flagged word stay in the queue for you to check.`,
+      confirmLabel: `Approve ${n}`
+    });
+    if (!yes) return;
     run([$("approveAll")], async () => {
       // Firestore batches cap at 500 writes; 2 writes per post
       for (let i = 0; i < clean.length; i += 200) {
@@ -424,8 +544,14 @@
       rm.type = "button";
       rm.className = "danger";
       rm.textContent = "Remove from wall";
-      rm.addEventListener("click", () => {
-        if (confirm("Remove this post from the wall?")) removeFromWall(p, [rm]);
+      rm.addEventListener("click", async () => {
+        const yes = await askConfirm({
+          title: "Remove from the wall?",
+          body: "It comes off the display right away. The post is kept, marked as removed.",
+          confirmLabel: "Remove from wall",
+          danger: true
+        });
+        if (yes) removeFromWall(p, [rm, del]);
       });
       const del = document.createElement("button");
       del.type = "button";
@@ -442,7 +568,7 @@
   function denied(err) {
     console.error(err);
     if (err.code === "permission-denied") {
-      alert("This account isn't on the moderator list. Add its email to firestore.rules and publish the rules.");
+      notice("Not a moderator account", "Add this email to the moderator list in firestore.rules, then publish the rules in Firebase.");
     }
   }
 
