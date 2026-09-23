@@ -1,0 +1,37 @@
+// ─────────────────────────────────────────────────────────────
+// Sewer Expo Wall — shared config
+// 1) Paste your Firebase web app config below (Project settings → Your apps).
+// 2) Adjust EVENT copy/settings as needed. Every page reads from here.
+// ─────────────────────────────────────────────────────────────
+
+export const firebaseConfig = {
+  apiKey: "PASTE_API_KEY",
+  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
+  projectId: "PASTE_PROJECT_ID",
+  storageBucket: "PASTE_PROJECT_ID.appspot.com",
+  messagingSenderId: "PASTE_SENDER_ID",
+  appId: "PASTE_APP_ID"
+};
+
+export const EVENT = {
+  eventLine1: "2026 OMAG Sanitary Sewer Expo",
+  eventLine2: "Stride Bank Center, Enid",
+  wallTitle: "The Expo Wall",
+  prompt: "What's one idea you're taking home to your town?",
+
+  // Public URL of the posting page (index.html). Leave "" to auto-detect
+  // from wherever wall.html is hosted. Set it if you use a short redirect
+  // like https://omag.org/wall so the QR and on-screen text match.
+  postUrl: "",
+
+  maxLength: 200,   // characters per post (must match firestore.rules)
+  wallCount: 9,     // posts on screen at once (3 x 3 grid)
+  cooldownSeconds: 30, // per-phone wait between posts
+
+  // Moderator page highlights posts containing these words. Nothing is
+  // auto-rejected; this just speeds up review. Add to it freely.
+  flagWords: [
+    "damn", "hell", "crap", "shit", "fuck", "fucking", "bitch", "ass",
+    "asshole", "bastard", "dick", "piss", "sucks", "stupid", "idiot"
+  ]
+};
