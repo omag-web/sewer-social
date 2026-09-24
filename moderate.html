@@ -256,14 +256,19 @@
   let unsubs = [];
 
   // ── Flagging ────────────────────────────────────────────
-  const flagSet = new Set(EVENT.flagWords.map((w) => w.toLowerCase()));
+  // Whole-word / whole-phrase matching: "ass" won't flag "class",
+  // phrases allow any spacing, censored spellings like "f*ck" match literally.
+  const escapeRe = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const flagMatchers = EVENT.flagWords.map((w) => {
+    const pattern = escapeRe(w.toLowerCase().trim()).replace(/\s+/g, "\\s+");
+    return { word: w, re: new RegExp(`(^|[^a-z0-9])${pattern}(?=$|[^a-z0-9])`, "i") };
+  });
   function flagsFor(p) {
     const text = `${p.message || ""} ${p.name || ""} ${p.org || ""}`;
     const out = [];
     if (/https?:|www\.|\.(com|net|org|io|ly|co|gg|me)\b/i.test(text)) out.push("Contains a link");
-    const words = text.toLowerCase().match(/[a-z']+/g) || [];
-    const hit = words.filter((w) => flagSet.has(w));
-    if (hit.length) out.push(`Flagged word: ${[...new Set(hit)].join(", ")}`);
+    const hit = flagMatchers.filter((m) => m.re.test(text)).map((m) => m.word);
+    if (hit.length) out.push(`Flagged: ${hit.join(", ")}`);
     if (hasPhoto(p)) out.push("Has a photo, check it before approving");
     return out;
   }
