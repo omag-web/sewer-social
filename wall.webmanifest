@@ -1,0 +1,10 @@
+{
+  "name": "Expo Wall",
+  "short_name": "Expo Wall",
+  "start_url": "./wall.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#181716",
+  "theme_color": "#181716"
+}
