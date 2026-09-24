@@ -28,13 +28,13 @@ export const EVENT = {
   postUrl: "https://link.omag.org/expo-wall",
 
   maxLength: 200,   // characters per post (must match firestore.rules)
-  wallCount: 9,     // posts on screen at once (3 x 3 grid)
 
-  // Rotation: the newest posts stay pinned to the top row; the other slots
-  // cycle through older approved posts, one card at a time.
-  pinnedNewest: 3,    // newest posts that always stay on screen (top row)
-  rotateSeconds: 8,   // how often one of the other cards swaps
-  wallPool: 60,       // how many recent approved posts are in the rotation
+  // Wall display: one post at a time in the spotlight, everything else
+  // drifting in two columns. New approved posts jump into the spotlight.
+  spotlightSeconds: 10, // how long each post stays in the spotlight
+  driftSpeed: 22,       // column drift speed (pixels per second)
+  minPostsForColumns: 4, // columns start drifting once there are this many posts
+  wallPool: 60,         // how many recent approved posts the wall cycles through
   cooldownSeconds: 30, // per-phone wait between posts
 
   // Photos are resized and compressed on the phone before upload, then
