@@ -201,7 +201,7 @@
   </section>
   <section class="col wall">
     <h2 class="cond">On the wall now</h2>
-    <p class="hint">Newest first. The display keeps the newest <span id="pinnedCount"></span> in its top row and rotates the rest of these through the other slots.</p>
+    <p class="hint">Newest first. Each newly approved post goes straight into the wall's spotlight; after that, the wall cycles through all of these.</p>
     <div class="list" id="onWall"></div>
   </section>
 </main>
@@ -235,7 +235,6 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
   const $ = (id) => document.getElementById(id);
-  $("pinnedCount").textContent = EVENT.pinnedNewest ?? 3;
   if (EVENT.logo) {
     const logo = $("logo");
     logo.alt = EVENT.eventLine1;
