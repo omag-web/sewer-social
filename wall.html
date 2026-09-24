@@ -11,7 +11,11 @@
 <style>
   /*
     Fixed 1920x1080 stage, scaled to fit whatever window or ProPresenter
-    web object it lands in, so it looks identical at any size.
+    web object it lands in.
+
+    Layout: QR rail | one post in the spotlight | two slowly drifting columns
+    of everything else. New approved posts jump straight into the spotlight.
+
     URL options:
       ?clear=1   transparent background (use ProPresenter's own background)
       ?fs=0      hide the full-screen icon entirely
@@ -21,6 +25,7 @@
   :root {
     --base: #181716;
     --rail: #121110;
+    --spot: #211e1c;
     --edge: #4a4540;
     --card: #ffffff;
     --accent: #d49c61;
@@ -46,7 +51,7 @@
     height: 1080px;
     transform-origin: center center;
     display: grid;
-    grid-template-columns: 520px 1fr;
+    grid-template-columns: 480px 1fr;
     font-family: Barlow, "Segoe UI", system-ui, sans-serif;
     color: #fff;
     background-color: var(--base);
@@ -58,13 +63,14 @@
     background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
   }
 
-  /* Left rail */
+  /* ── Left rail ─────────────────────────────────────── */
   .rail {
     background: var(--rail);
     border-right: 2px solid rgba(212,156,97,.35);
-    padding: 64px 56px 56px;
+    padding: 64px 52px 52px;
     display: flex;
     flex-direction: column;
+    min-height: 0;
   }
   .logo { display: block; align-self: flex-start; max-width: 100%; max-height: 120px; width: auto; height: auto; object-fit: contain; margin: 0; }
   .event { margin: 0; font-size: 24px; line-height: 1.35; color: var(--steel-light); font-weight: 500; }
@@ -76,13 +82,7 @@
     margin: 28px 0 0;
     letter-spacing: -.5px;
   }
-  .prompt {
-    font-size: 36px;
-    font-weight: 600;
-    line-height: 1.2;
-    margin: 28px 0 0;
-    color: #fff;
-  }
+  .prompt { font-size: 34px; font-weight: 600; line-height: 1.2; margin: 24px 0 0; }
   .scan {
     margin-top: auto;
     background: var(--accent);
@@ -93,16 +93,8 @@
     flex-direction: column;
     gap: 18px;
   }
-  #qr {
-    flex: none;
-    width: 224px;
-    height: 224px;
-    background: #fff;
-    padding: 12px;
-    border-radius: 4px;
-  }
+  #qr { flex: none; width: 224px; height: 224px; background: #fff; padding: 12px; border-radius: 4px; }
   #qr img, #qr canvas { width: 200px !important; height: 200px !important; display: block; }
-  .scan-text { min-width: 0; }
   .scan-head {
     font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
     font-weight: 700;
@@ -110,123 +102,181 @@
     line-height: .92;
     margin: 0 0 8px;
   }
-  .scan-url { font-size: 18px; font-weight: 600; line-height: 1.3; margin: 0; overflow-wrap: anywhere; }
+  .scan-url { font-size: 20px; font-weight: 600; line-height: 1.3; margin: 0; overflow-wrap: anywhere; }
 
-  /* Posts grid */
-  .posts {
-    padding: 56px 56px 56px 48px;
+  /* ── Main area: spotlight + two drifting columns ─────── */
+  .main {
+    padding: 48px;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap: 24px;
+    grid-template-columns: minmax(0, 1fr) 248px 248px;
+    column-gap: 28px;
     min-height: 0;
   }
-  .slot {
-    border: 2px dashed rgba(179,172,164,.22);
-    border-radius: 8px;
-  }
-  .card {
-    transition: opacity .5s ease;
-    background: var(--card);
-    color: var(--ink);
-    border-radius: 8px;
-    border-left: 8px solid var(--edge);
-    padding: 24px 26px 22px 26px;
+
+  /* Spotlight */
+  .spotlight { position: relative; min-height: 0; }
+  .spot {
+    position: absolute;
+    inset: 0;
+    background: var(--spot);
+    border: 1px solid rgba(212,156,97,.28);
+    border-radius: 12px;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
+    transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1);
   }
-  .card.latest { border-left: 14px solid var(--accent); padding-left: 22px; }
-  .msg {
+  .spot.entering { opacity: 0; transform: translateY(24px); }
+  .spot.leaving { opacity: 0; transform: scale(.98); }
+
+  .spot-text { padding: 56px 64px 60px; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .spot-body { margin: auto 0; min-height: 0; }
+  .quote-mark {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 700;
+    font-size: 220px;
+    line-height: .62;
+    height: 110px;
+    color: var(--accent);
+    margin: 0 0 18px -8px;
+    user-select: none;
+  }
+  .spot .msg {
     margin: 0;
-    font-weight: 500;
+    font-weight: 600;
     white-space: pre-wrap;
     word-break: break-word;
     overflow: hidden;
     display: -webkit-box;
     -webkit-box-orient: vertical;
   }
-  .msg.s1 { font-size: 36px; line-height: 1.2;  -webkit-line-clamp: 5; }
-  .msg.s2 { font-size: 29px; line-height: 1.22; -webkit-line-clamp: 6; }
-  .msg.s3 { font-size: 24px; line-height: 1.25; -webkit-line-clamp: 8; }
-  .by {
-    margin: auto 0 0;
-    padding-top: 14px;
+  .spot-text .msg.s1 { font-size: 72px; line-height: 1.12; -webkit-line-clamp: 6; }
+  .spot-text .msg.s2 { font-size: 58px; line-height: 1.16; -webkit-line-clamp: 8; }
+  .spot-text .msg.s3 { font-size: 46px; line-height: 1.2;  -webkit-line-clamp: 10; }
+
+  .spot .by {
+    margin: 0;
+    padding-top: 28px;
     font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
-    font-size: 25px;
+    font-size: 38px;
     line-height: 1.1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .by strong { font-weight: 700; color: var(--ink); }
-  .by span { font-weight: 600; color: var(--steel); }
+  .spot .by strong { font-weight: 700; color: var(--accent); }
+  .spot .by span { font-weight: 600; color: var(--steel-light); }
 
-  /* Photo posts: image fills the card, caption over a dark fade */
-  .card.photo {
-    position: relative;
-    padding: 0;
-    background: var(--base);
-    justify-content: flex-end;
+  .spot-photo { position: relative; flex: 1; min-height: 0; background: #0d0c0b; overflow: hidden; }
+  .spot-photo img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .spot-photo img.bg { object-fit: cover; filter: blur(28px) brightness(.5); transform: scale(1.15); }
+  .spot-photo img.fg { object-fit: contain; animation: drift var(--dwell, 10s) linear both; }
+  @keyframes drift { from { transform: scale(1); } to { transform: scale(1.045); } }
+  .spot-cap { padding: 26px 40px 34px; }
+  .spot-cap .msg { font-size: 36px; line-height: 1.22; -webkit-line-clamp: 3; }
+  .spot-cap .by { padding-top: 12px; font-size: 32px; margin: 0; }
+
+  .just-posted {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    z-index: 2;
+    background: var(--accent);
+    color: var(--ink);
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 700;
+    font-size: 30px;
+    line-height: 1;
+    padding: 10px 18px 11px;
+    border-radius: 6px;
   }
-  .card.photo.latest { padding-left: 0; }
-  /* Whole photo shown (no cropping); a blurred copy fills the leftover space */
-  .card.photo img {
+  .progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 5px;
+    width: 100%;
+    background: var(--accent);
+    transform-origin: left center;
+    animation: fill var(--dwell, 10s) linear both;
+    opacity: .85;
+  }
+  @keyframes fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+  .spot-empty { padding: 72px 64px; justify-content: center; }
+  .spot-empty h2 {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-size: 120px;
+    line-height: .92;
+    margin: 0 0 28px;
+  }
+  .spot-empty p { font-size: 42px; line-height: 1.25; margin: 0; color: var(--steel-light); max-width: 18ch; }
+
+  /* Drifting columns */
+  .col {
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+    transition: opacity .45s ease;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 70px, #000 calc(100% - 70px), transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0, #000 70px, #000 calc(100% - 70px), transparent 100%);
+  }
+  .col.refresh { opacity: 0; }
+  .track { display: flow-root; will-change: transform; }
+  @keyframes scrollUp   { from { transform: translateY(0); }    to { transform: translateY(-50%); } }
+  @keyframes scrollDown { from { transform: translateY(-50%); } to { transform: translateY(0); } }
+
+  .mini {
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 8px;
+    border-left: 6px solid var(--edge);
+    margin: 0 0 20px;
+    overflow: hidden;
+  }
+  .mini-text { padding: 18px 18px 16px; }
+  .mini .msg {
+    margin: 0;
+    font-size: 21px;
+    line-height: 1.3;
+    font-weight: 500;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .mini .by {
+    margin: 12px 0 0;
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-size: 20px;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mini .by strong { font-weight: 700; color: var(--ink); }
+  .mini .by span { font-weight: 600; color: var(--steel); }
+  .mini-photo { position: relative; height: 230px; background: #0d0c0b; overflow: hidden; }
+  .mini-photo img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .mini-photo img.bg { object-fit: cover; filter: blur(16px) brightness(.55); transform: scale(1.15); }
+  .mini-photo img.fg { object-fit: contain; }
+  .mini.photo { border-left: 0; }
+  .mini.photo .msg { font-size: 19px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+
+  /* Until there are enough posts to drift, columns show as quiet outlines */
+  .col-empty {
     position: absolute;
     inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-  .card.photo img.bg {
-    object-fit: cover;
-    filter: blur(22px) brightness(.55);
-    transform: scale(1.15);
-  }
-  .card.photo img.fg { object-fit: contain; }
-  .card.photo .cap {
-    position: relative;
-    padding: 60px 22px 18px;
-    background: linear-gradient(to top, rgba(24,23,22,.92) 0%, rgba(24,23,22,.75) 55%, rgba(24,23,22,0) 100%);
-    color: #fff;
-  }
-  .card.photo .msg { font-size: 23px; line-height: 1.25; -webkit-line-clamp: 3; }
-  .card.photo .by { padding-top: 8px; font-size: 22px; }
-  .card.photo .by strong { color: #fff; }
-  .card.photo .by span { color: #d8d2cb; }
-
-  .card.enter { animation: arrive 900ms cubic-bezier(.2,.8,.2,1) both; }
-  @keyframes arrive {
-    0%   { opacity: 0; transform: scale(.94); box-shadow: 0 0 0 0 rgba(212,156,97,0); }
-    55%  { opacity: 1; transform: scale(1.02); box-shadow: 0 0 0 10px rgba(212,156,97,.55); }
-    100% { opacity: 1; transform: scale(1);   box-shadow: 0 0 0 0 rgba(212,156,97,0); }
-  }
-  /* Rotation: one card fades out, its replacement fades in */
-  .card.fading { opacity: 0; }
-  .card.fade-in { animation: fadein .6s ease both; }
-  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
-  @media (prefers-reduced-motion: reduce) {
-    .card.enter, .card.fade-in { animation: none; }
-    .card { transition: none; }
-  }
-
-  .empty {
-    grid-column: 1 / -1;
-    grid-row: 1 / -1;
-    border: 2px dashed rgba(179,172,164,.35);
+    border: 2px dashed rgba(179,172,164,.22);
     border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 0 120px;
+    display: none;
   }
-  .empty h2 {
-    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
-    font-size: 110px;
-    line-height: .95;
-    margin: 0 0 24px;
+  #stage.sparse .col-empty { display: block; }
+  #stage.sparse .track { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spot, .col { transition: none; }
+    .spot-photo img.fg, .progress { animation: none; }
+    .track { animation: none !important; }
   }
-  .empty p { font-size: 40px; line-height: 1.25; margin: 0; color: var(--steel-light); max-width: 20ch; }
 
   /* Full-screen control: small, faint icon in the corner.
      Brightens when the mouse moves, full strength on hover. */
@@ -258,7 +308,7 @@
   .status {
     position: absolute;
     right: 56px;
-    bottom: 18px;
+    bottom: 14px;
     font-size: 18px;
     color: var(--steel-light);
     opacity: 0;
@@ -276,13 +326,17 @@
     <p class="prompt" id="prompt"></p>
     <div class="scan">
       <div id="qr" aria-hidden="true"></div>
-      <div class="scan-text">
+      <div>
         <p class="scan-head">Scan to post</p>
         <p class="scan-url" id="url"></p>
       </div>
     </div>
   </aside>
-  <section class="posts" id="posts" aria-live="polite"></section>
+  <section class="main">
+    <div class="spotlight" id="spotlight" aria-live="polite"></div>
+    <div class="col" id="col0"><div class="track"></div><div class="col-empty"></div></div>
+    <div class="col" id="col1"><div class="track"></div><div class="col-empty"></div></div>
+  </section>
   <div class="status" id="status">Reconnecting…</div>
 </div>
 <button type="button" class="fs-btn" id="fsBtn" aria-label="Full screen" title="Full screen (F)">
@@ -295,11 +349,12 @@
   import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { firebaseConfig, EVENT } from "./config.js";
 
+  const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   if (params.get("clear") === "1") document.body.classList.add("clear");
 
-  // Scale the fixed stage to fit the viewport
-  const stage = document.getElementById("stage");
+  // ── Stage scaling ─────────────────────────────────────
+  const stage = $("stage");
   function fit() {
     const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
     stage.style.transform = `translate(-50%, -50%) scale(${s})`;
@@ -307,8 +362,8 @@
   window.addEventListener("resize", fit);
   fit();
 
-  // Full screen
-  const fsBtn = document.getElementById("fsBtn");
+  // ── Full screen ───────────────────────────────────────
+  const fsBtn = $("fsBtn");
   const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
   const fsSupported = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
   function toggleFullscreen() {
@@ -325,7 +380,7 @@
     fsBtn.setAttribute("aria-label", full ? "Exit full screen" : "Full screen");
     fsBtn.title = full ? "Exit full screen (F)" : "Full screen (F)";
   }
-  if (params.get("fs") === "0") fsBtn.remove(); // e.g. wall.html?fs=0 for ProPresenter
+  if (params.get("fs") === "0") fsBtn.remove();
   if (fsSupported) {
     fsBtn.addEventListener("click", toggleFullscreen);
     document.addEventListener("dblclick", toggleFullscreen);
@@ -337,8 +392,6 @@
   } else if (fsBtn.isConnected) {
     fsBtn.remove();
   }
-
-  // Show cursor + button on mouse movement; hide after 3s idle
   let idleTimer;
   function wake() {
     document.body.classList.add("awake");
@@ -347,59 +400,60 @@
   }
   document.addEventListener("mousemove", wake);
   document.addEventListener("touchstart", wake, { passive: true });
-  wake(); // visible briefly on load so it's easy to find
+  wake();
 
-  // Static copy
-  document.getElementById("event").innerHTML = "";
+  // ── Rail copy, logo, QR ───────────────────────────────
   [EVENT.eventLine1, EVENT.eventLine2].forEach((line, i) => {
-    if (i) document.getElementById("event").appendChild(document.createElement("br"));
-    document.getElementById("event").appendChild(document.createTextNode(line));
+    if (i) $("event").appendChild(document.createElement("br"));
+    $("event").appendChild(document.createTextNode(line));
   });
-  document.getElementById("title").textContent = EVENT.wallTitle;
+  $("title").textContent = EVENT.wallTitle;
+  $("prompt").textContent = EVENT.prompt;
   if (EVENT.logo) {
-    const logo = document.getElementById("logo");
+    const logo = $("logo");
     logo.alt = EVENT.eventLine1;
-    logo.onload = () => {
-      logo.hidden = false;
-      document.getElementById("event").hidden = true; // logo carries the event name
-    };
+    logo.onload = () => { logo.hidden = false; $("event").hidden = true; };
     logo.src = encodeURI(EVENT.logo);
   }
-  document.getElementById("prompt").textContent = EVENT.prompt;
-
   const postUrl = EVENT.postUrl || new URL("./", location.href).href;
-  document.getElementById("url").textContent = postUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  $("url").textContent = postUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
   if (window.QRCode) {
-    new QRCode(document.getElementById("qr"), {
-      text: postUrl, width: 424, height: 424,
+    new QRCode($("qr"), {
+      text: postUrl, width: 400, height: 400,
       colorDark: "#181716", colorLight: "#ffffff",
       correctLevel: QRCode.CorrectLevel.M
     });
   }
 
-  // Posts
-  const grid = document.getElementById("posts");
-  const status = document.getElementById("status");
-  const db = getFirestore(initializeApp(firebaseConfig));
-  const W = EVENT.wallCount;
-  const POOL = Math.max(W, EVENT.wallPool || 60);
-  const PINNED = Math.min(EVENT.pinnedNewest ?? 3, W);
-  const ROTATE_MS = Math.max(3, EVENT.rotateSeconds || 8) * 1000;
+  // ── Settings ──────────────────────────────────────────
+  const POOL = Math.max(1, EVENT.wallPool || 60);
+  const DWELL = Math.max(4, EVENT.spotlightSeconds || 10) * 1000;
+  const SPEED = Math.max(5, EVENT.driftSpeed || 22);         // px per second
+  const MIN_FOR_COLUMNS = Math.max(2, EVENT.minPostsForColumns || 4);
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const wallQuery = query(collection(db, "wall"), orderBy("approvedAt", "desc"), limit(POOL));
+  stage.style.setProperty("--dwell", `${DWELL / 1000}s`);
 
-  let all = [];             // approved posts, newest first
-  let byId = new Map();
-  let shown = [];           // post id in each grid slot (or null)
-  let known = null;         // ids from the previous snapshot; null until first load
-  const lastShown = new Map(); // id -> when it was last put on screen
-  let lastRotatedSlot = -1;
+  // ── Shared helpers ────────────────────────────────────
+  const hasPhoto = (p) => typeof p.image === "string" && p.image.startsWith("data:image/jpeg;base64,");
 
-  function sizeClass(text) {
-    const n = (text || "").length;
-    if (n <= 70) return "s1";
-    if (n <= 130) return "s2";
-    return "s3";
+  // Photos arrive as long data URLs. Convert each once to a blob URL so the
+  // same photo can appear in the spotlight and columns without copying it.
+  const blobUrls = new Map();
+  function photoUrl(p) {
+    let url = blobUrls.get(p.id);
+    if (!url) {
+      const bin = atob(p.image.slice(p.image.indexOf(",") + 1));
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      url = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
+      blobUrls.set(p.id, url);
+    }
+    return url;
+  }
+  function releaseBlobs(liveIds) {
+    for (const [id, url] of blobUrls) {
+      if (!liveIds.has(id)) { URL.revokeObjectURL(url); blobUrls.delete(id); }
+    }
   }
 
   function byline(post) {
@@ -412,159 +466,245 @@
       strong.textContent = name;
       by.appendChild(strong);
     }
-    if (org) {
+    if (org || !name) {
       const span = document.createElement("span");
-      span.textContent = (name ? ", " : "") + org;
-      by.appendChild(span);
-    }
-    if (!name && !org) {
-      const span = document.createElement("span");
-      span.textContent = "Expo attendee";
+      span.textContent = org ? (name ? ", " : "") + org : "Expo attendee";
       by.appendChild(span);
     }
     return by;
   }
 
-  function buildCard(post, isLatest, isNew) {
-    const card = document.createElement("article");
-    const hasPhoto = typeof post.image === "string" && post.image.startsWith("data:image/jpeg;base64,");
-    card.className = "card" + (hasPhoto ? " photo" : "") + (isLatest ? " latest" : "") + (isNew ? " enter" : "");
-
-    if (hasPhoto) {
-      const bg = document.createElement("img");
-      bg.className = "bg";
-      bg.src = post.image;
-      bg.alt = "";
-      const fg = document.createElement("img");
-      fg.className = "fg";
-      fg.src = post.image;
-      fg.alt = "";
-      card.append(bg, fg);
-      const cap = document.createElement("div");
-      cap.className = "cap";
-      if (post.message) {
-        const msg = document.createElement("p");
-        msg.className = "msg";
-        msg.textContent = post.message;
-        cap.appendChild(msg);
-      }
-      cap.appendChild(byline(post));
-      card.appendChild(cap);
-      return card;
-    }
-
-    const msg = document.createElement("p");
-    msg.className = "msg " + sizeClass(post.message);
-    msg.textContent = post.message || "";
-    card.appendChild(msg);
-    card.appendChild(byline(post));
-    return card;
+  function photoBox(className, url) {
+    const box = document.createElement("div");
+    box.className = className;
+    const bg = document.createElement("img");
+    bg.className = "bg"; bg.src = url; bg.alt = "";
+    const fg = document.createElement("img");
+    fg.className = "fg"; fg.src = url; fg.alt = "";
+    box.append(bg, fg);
+    return box;
   }
 
-  function emptySlot() {
-    const slot = document.createElement("div");
-    slot.className = "slot";
-    return slot;
+  function msgEl(text, className) {
+    const p = document.createElement("p");
+    p.className = className ? `msg ${className}` : "msg";
+    p.textContent = text;
+    return p;
   }
 
-  function paintAll(newIds) {
-    grid.innerHTML = "";
-    if (!all.length) {
-      const empty = document.createElement("div");
-      empty.className = "empty";
+  function spotSize(text) {
+    const n = (text || "").length;
+    return n <= 60 ? "s1" : n <= 120 ? "s2" : "s3";
+  }
+
+  // ── State ─────────────────────────────────────────────
+  let all = [];            // approved posts, newest first
+  let byId = new Map();
+  let known = null;        // ids from the previous snapshot; null before first load
+  let queue = [];          // newly approved ids waiting for the spotlight
+  let spotId = null;
+  let spotTimer = null;
+  let spotIsNew = false;
+  let spotShownAt = 0;
+  const spotSeen = new Map(); // id -> last time it was in the spotlight
+
+  // ── Spotlight ─────────────────────────────────────────
+  const spotBox = $("spotlight");
+
+  function buildSpot(post, isNew) {
+    const el = document.createElement("article");
+    el.className = "spot";
+
+    if (!post) {
+      el.classList.add("spot-empty");
       const h = document.createElement("h2");
       h.textContent = "Be the first on the wall.";
       const p = document.createElement("p");
       p.textContent = "Scan the code to post a highlight, a photo, or a takeaway.";
-      empty.append(h, p);
-      grid.appendChild(empty);
-      return;
+      el.append(h, p);
+      return el;
     }
-    const now = Date.now();
-    shown.forEach((id, i) => {
-      const post = id ? byId.get(id) : null;
-      if (post) {
-        grid.appendChild(buildCard(post, i === 0, newIds.has(id)));
-        lastShown.set(id, now);
-      } else {
-        grid.appendChild(emptySlot());
-      }
+
+    if (hasPhoto(post)) {
+      el.appendChild(photoBox("spot-photo", photoUrl(post)));
+      const cap = document.createElement("div");
+      cap.className = "spot-cap";
+      if (post.message) cap.appendChild(msgEl(post.message));
+      cap.appendChild(byline(post));
+      el.appendChild(cap);
+    } else {
+      const body = document.createElement("div");
+      body.className = "spot-text";
+      const mark = document.createElement("div");
+      mark.className = "quote-mark";
+      mark.setAttribute("aria-hidden", "true");
+      mark.textContent = "\u201C";
+      const group = document.createElement("div");
+      group.className = "spot-body";
+      group.append(mark, msgEl(post.message || "", spotSize(post.message)));
+      body.append(group, byline(post));
+      el.appendChild(body);
+    }
+
+    if (isNew) {
+      const tag = document.createElement("div");
+      tag.className = "just-posted";
+      tag.textContent = "Just posted";
+      el.appendChild(tag);
+    }
+    if (all.length > 1) {
+      const bar = document.createElement("div");
+      bar.className = "progress";
+      el.appendChild(bar);
+    }
+    return el;
+  }
+
+  function showSpot(post, isNew = false) {
+    const el = buildSpot(post, isNew);
+    const old = [...spotBox.children];
+    if (!reduceMotion) el.classList.add("entering");
+    spotBox.appendChild(el);
+    if (!reduceMotion) {
+      requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove("entering")));
+      old.forEach((o) => { o.classList.add("leaving"); setTimeout(() => o.remove(), 750); });
+    } else {
+      old.forEach((o) => o.remove());
+    }
+
+    spotId = post ? post.id : null;
+    spotIsNew = !!(post && isNew);
+    spotShownAt = Date.now();
+    if (post) spotSeen.set(post.id, spotShownAt);
+    clearTimeout(spotTimer);
+    if (post) spotTimer = setTimeout(nextSpot, DWELL);
+  }
+
+  // Next spotlight: newly approved posts first, then whichever posts have
+  // gone longest without a turn (with a little randomness)
+  function nextSpot() {
+    clearTimeout(spotTimer);
+    spotTimer = null;
+    if (!all.length) { if (spotId !== null || !spotBox.children.length) showSpot(null); return; }
+
+    while (queue.length) {
+      const p = byId.get(queue.shift());
+      if (p) { showSpot(p, true); return; }
+    }
+
+    if (all.length === 1) {
+      if (spotId !== all[0].id) showSpot(all[0]);
+      return; // nothing else to rotate to
+    }
+
+    const candidates = all
+      .filter((p) => p.id !== spotId)
+      .sort((a, b) => (spotSeen.get(a.id) || 0) - (spotSeen.get(b.id) || 0));
+    const pool = candidates.slice(0, Math.max(1, Math.ceil(candidates.length / 3)));
+    showSpot(pool[Math.floor(Math.random() * pool.length)]);
+  }
+
+  // ── Drifting columns ──────────────────────────────────
+  const cols = [$("col0"), $("col1")];
+  let columnKey = "";
+
+  function buildMini(post) {
+    const card = document.createElement("article");
+    card.className = "mini";
+    if (hasPhoto(post)) {
+      card.classList.add("photo");
+      card.appendChild(photoBox("mini-photo", photoUrl(post)));
+    }
+    const text = document.createElement("div");
+    text.className = "mini-text";
+    if (post.message) text.appendChild(msgEl(post.message));
+    text.appendChild(byline(post));
+    card.appendChild(text);
+    return card;
+  }
+
+  function fillTrack(col, posts, index) {
+    const track = col.querySelector(".track");
+    track.style.animation = "none";
+    track.innerHTML = "";
+    if (!posts.length) return;
+
+    // Repeat the set until it's taller than the column, then duplicate it
+    // once so the loop is seamless (the animation moves exactly one set).
+    const colH = col.offsetHeight;
+    let guard = 0;
+    do {
+      posts.forEach((p) => track.appendChild(buildMini(p)));
+      guard++;
+    } while (track.offsetHeight < colH && guard < 10);
+    const setH = track.offsetHeight;
+    [...track.children].forEach((c) => track.appendChild(c.cloneNode(true)));
+
+    if (reduceMotion) return;
+    const seconds = setH / (SPEED * (index ? 0.8 : 1)); // slightly different speeds
+    const name = index ? "scrollDown" : "scrollUp";       // opposite directions
+    // Start partway through so the two columns don't line up
+    const offset = -(seconds * (index ? 0.35 : 0.1));
+    track.style.animation = `${name} ${seconds}s linear ${offset}s infinite`;
+  }
+
+  function buildColumns() {
+    const key = all.map((p) => p.id).join("|");
+    if (key === columnKey) return;
+    columnKey = key;
+
+    const sparse = all.length < MIN_FOR_COLUMNS;
+    stage.classList.toggle("sparse", sparse);
+    if (sparse) { cols.forEach((c) => (c.querySelector(".track").innerHTML = "")); return; }
+
+    const split = [[], []];
+    all.forEach((p, i) => split[i % 2].push(p));
+    cols.forEach((col, i) => {
+      const build = () => { fillTrack(col, split[i], i); col.classList.remove("refresh"); };
+      if (!col.dataset.built || reduceMotion) { build(); col.dataset.built = "1"; }
+      else { col.classList.add("refresh"); setTimeout(build, 450); }
     });
   }
 
+  // ── Data ──────────────────────────────────────────────
   function applySnapshot(posts) {
-    byId = new Map(posts.map((p) => [p.id, p]));
-    const newIds = known === null
-      ? new Set()
-      : new Set(posts.filter((p) => !known.has(p.id)).map((p) => p.id));
+    const liveIds = new Set(posts.map((p) => p.id));
+    const arrivals = known === null ? [] : posts.filter((p) => !known.has(p.id)).map((p) => p.id).reverse();
     all = posts;
+    byId = new Map(posts.map((p) => [p.id, p]));
 
-    if (known === null || newIds.size || posts.length <= W) {
-      // First load, a new post arrived, or everything fits: newest first
-      shown = Array.from({ length: W }, (_, i) => posts[i]?.id ?? null);
-    } else {
-      // A post was removed or edited: keep the current arrangement,
-      // re-pin the newest row, and fill any gaps
-      const next = Array(W).fill(null);
-      for (let i = 0; i < PINNED; i++) next[i] = posts[i]?.id ?? null;
-      const used = new Set(next.filter(Boolean));
-      for (let i = PINNED; i < W; i++) {
-        const id = shown[i];
-        if (id && byId.has(id) && !used.has(id)) { next[i] = id; used.add(id); }
-      }
-      for (let i = PINNED; i < W; i++) {
-        if (next[i]) continue;
-        const p = posts.find((x) => !used.has(x.id));
-        if (p) { next[i] = p.id; used.add(p.id); }
-      }
-      shown = next;
+    buildColumns();
+
+    if (known === null) {
+      showSpot(posts[0] || null); // start with the newest
+    } else if (arrivals.length) {
+      queue.push(...arrivals);    // oldest arrival first
+      // New posts interrupt the rotation, but never cut another brand-new
+      // post short: if one is still in its first half, the next one waits.
+      const protectedNew = spotIsNew && Date.now() - spotShownAt < DWELL / 2;
+      if (!protectedNew) nextSpot();
+    } else if (!posts.length) {
+      showSpot(null);
+    } else if (!spotId || !liveIds.has(spotId)) {
+      nextSpot();                 // spotlight post was removed
+    } else if (posts.length > 1 && !spotTimer) {
+      spotTimer = setTimeout(nextSpot, DWELL);
     }
 
-    paintAll(newIds);
-    known = new Set(posts.map((p) => p.id));
+    known = liveIds;
+    releaseBlobs(liveIds);
   }
 
-  function swapSlot(i, post) {
-    const old = grid.children[i];
-    if (!old) return;
-    shown[i] = post.id;
-    lastShown.set(post.id, Date.now());
-    const card = buildCard(post, i === 0, false);
-    if (reduceMotion) { grid.replaceChild(card, old); return; }
-    old.classList.add("fading");
-    setTimeout(() => {
-      if (old.parentNode !== grid) return; // wall repainted mid-fade
-      card.classList.add("fade-in");
-      grid.replaceChild(card, old);
-    }, 500);
-  }
-
-  // Every few seconds, swap one non-pinned card for an older post,
-  // favoring posts that haven't been on screen recently
-  function rotate() {
-    if (all.length <= W || document.hidden) return;
-    const slots = [];
-    for (let i = PINNED; i < W; i++) if (i !== lastRotatedSlot) slots.push(i);
-    if (!slots.length) return;
-    const slot = slots[Math.floor(Math.random() * slots.length)];
-
-    const onScreen = new Set(shown.filter(Boolean));
-    const candidates = all
-      .filter((p) => !onScreen.has(p.id))
-      .sort((a, b) => (lastShown.get(a.id) || 0) - (lastShown.get(b.id) || 0));
-    if (!candidates.length) return;
-    const pool = candidates.slice(0, Math.max(1, Math.ceil(candidates.length / 3)));
-    const next = pool[Math.floor(Math.random() * pool.length)];
-
-    lastRotatedSlot = slot;
-    swapSlot(slot, next);
-  }
-  setInterval(rotate, ROTATE_MS);
+  const status = $("status");
+  const db = getFirestore(initializeApp(firebaseConfig));
+  const wallQuery = query(collection(db, "wall"), orderBy("approvedAt", "desc"), limit(POOL));
+  const fontsReady = document.fonts ? document.fonts.ready.catch(() => {}) : Promise.resolve();
 
   function subscribe() {
     onSnapshot(wallQuery, (snap) => {
       status.classList.remove("show");
-      applySnapshot(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const posts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      fontsReady.then(() => applySnapshot(posts)); // measure columns with real fonts
     }, (err) => {
       console.error(err);
       status.classList.add("show");
