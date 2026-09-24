@@ -25,7 +25,7 @@ export const EVENT = {
   // Public URL of the posting page (index.html). Leave "" to auto-detect
   // from wherever wall.html is hosted. Set it if you use a short redirect
   // like https://omag.org/wall so the QR and on-screen text match.
-  postUrl: "",
+  postUrl: "https://link.omag.org/expo-wall",
 
   maxLength: 200,   // characters per post (must match firestore.rules)
   wallCount: 9,     // posts on screen at once (3 x 3 grid)
