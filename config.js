@@ -42,10 +42,34 @@ export const EVENT = {
   photoMaxSide: 1200,  // longest edge in pixels
   photoMaxBytes: 650000, // target size of the encoded photo
 
-  // Moderator page highlights posts containing these words. Nothing is
-  // auto-rejected; this just speeds up review. Add to it freely.
+  // Moderator page highlights posts containing these. Nothing is auto-rejected:
+  // a flagged post is just marked and skipped by "Approve all unflagged."
+  // Matching is whole-word, so "ass" won't flag "class" or "pass". Phrases
+  // ("screw you") and censored spellings ("f*ck") work too.
+  // Deliberately left out because they're plumbing terms: "cock" (stopcock),
+  // "balls" (test balls). A human still reviews every post.
   flagWords: [
-    "damn", "hell", "crap", "shit", "fuck", "fucking", "bitch", "ass",
-    "asshole", "bastard", "dick", "piss", "sucks", "stupid", "idiot"
+    // Profanity
+    "damn", "dammit", "damnit", "goddamn", "hell", "crap",
+    "shit", "shitty", "bullshit", "horseshit",
+    "fuck", "fucks", "fucking", "fuckin", "fucked", "fucker", "fuckers",
+    "motherfucker", "motherfucking", "wtf", "stfu", "af",
+    // Crude
+    "ass", "asses", "asshole", "assholes", "badass", "bastard", "bastards",
+    "piss", "pissed", "pissing", "dick", "dicks", "dickhead",
+    "prick", "pricks", "nutsack", "douche", "douchebag",
+    // Insults
+    "bitch", "bitches", "stupid", "idiot", "idiots", "moron", "morons",
+    "dumbass", "jackass", "loser", "losers", "retard", "retarded",
+    "dipshit", "shithead", "scumbag", "piece of shit",
+    // Sexual / explicit
+    "horny", "porn", "porno", "sex", "sexy", "sexting", "nude", "nudes",
+    "boobs", "tits", "titties", "penis", "vagina", "pussy", "cum", "semen",
+    "blowjob", "handjob", "masturbate", "masturbation", "orgasm",
+    // Censored spellings
+    "fck", "fuk", "fuq", "f*ck", "f**k", "sh*t", "s**t", "b*tch", "b**ch",
+    "a**hole", "a-hole", "d*ck",
+    // Hostile phrases
+    "sucks", "screw you", "fuck you", "shut up", "go to hell"
   ]
 };
