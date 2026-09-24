@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Expo Wall Display</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Expo Wall</title>
+<!-- iPad/iPhone: "Add to Home Screen" opens this page as its own app,
+     with no Safari address bar, tabs, or full-screen X button. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Expo Wall">
+<meta name="theme-color" content="#181716">
+<link rel="manifest" href="wall.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@500;600&display=swap" rel="stylesheet">
@@ -380,7 +388,11 @@
     fsBtn.setAttribute("aria-label", full ? "Exit full screen" : "Full screen");
     fsBtn.title = full ? "Exit full screen (F)" : "Full screen (F)";
   }
-  if (params.get("fs") === "0") fsBtn.remove();
+  // Opened from the Home Screen: already full screen, no icon needed
+  const standalone = window.navigator.standalone === true
+    || window.matchMedia("(display-mode: standalone)").matches
+    || window.matchMedia("(display-mode: fullscreen)").matches;
+  if (params.get("fs") === "0" || standalone) fsBtn.remove();
   if (fsSupported) {
     fsBtn.addEventListener("click", toggleFullscreen);
     document.addEventListener("dblclick", toggleFullscreen);
@@ -401,6 +413,21 @@
   document.addEventListener("mousemove", wake);
   document.addEventListener("touchstart", wake, { passive: true });
   wake();
+
+  // ── Keep the screen awake (iPad, laptops) ─────────────
+  // Browsers only grant this while the page is visible, and some only
+  // after a tap, so ask again on load, on first touch, and on return.
+  let wakeLock = null;
+  async function keepAwake() {
+    if (!("wakeLock" in navigator) || wakeLock || document.hidden) return;
+    try {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    } catch (e) { /* not allowed yet; the next tap will try again */ }
+  }
+  keepAwake();
+  document.addEventListener("pointerdown", keepAwake);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) keepAwake(); });
 
   // ── Rail copy, logo, QR ───────────────────────────────
   [EVENT.eventLine1, EVENT.eventLine2].forEach((line, i) => {
