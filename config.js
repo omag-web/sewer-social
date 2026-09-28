@@ -31,7 +31,7 @@ export const EVENT = {
 
   // Wall display: one post at a time in the spotlight, everything else
   // drifting in two columns. New approved posts jump into the spotlight.
-  spotlightSeconds: 10, // how long each post stays in the spotlight
+  spotlightSeconds: 15, // how long each post stays in the spotlight
   driftSpeed: 22,       // column drift speed once the columns fill up (pixels per second)
   wallPool: 60,         // how many recent approved posts the wall cycles through
   cooldownSeconds: 30, // per-phone wait between posts

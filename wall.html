@@ -241,7 +241,11 @@
     border-left: 6px solid var(--edge);
     margin: 0 0 20px;
     overflow: hidden;
+    max-height: 700px;
+    transition: max-height .6s ease, margin-bottom .6s ease, opacity .4s ease;
   }
+  /* The post currently in the spotlight folds out of the side columns */
+  .mini.in-spot { max-height: 0; margin-bottom: 0; opacity: 0; }
   .mini-text { padding: 18px 18px 16px; }
   .mini .msg {
     margin: 0;
@@ -600,6 +604,7 @@
     }
 
     spotId = post ? post.id : null;
+    markSpotInColumns();
     spotIsNew = !!(post && isNew);
     spotShownAt = Date.now();
     if (post) spotSeen.set(post.id, spotShownAt);
@@ -635,9 +640,18 @@
   const cols = [$("col0"), $("col1")];
   let columnKey = "";
 
+  // Hide every copy of the spotlight post in the columns. Copies in both
+  // halves of a drifting track fold together, so the loop stays seamless.
+  function markSpotInColumns() {
+    document.querySelectorAll(".col .mini").forEach((m) => {
+      m.classList.toggle("in-spot", m.dataset.id === spotId);
+    });
+  }
+
   function buildMini(post) {
     const card = document.createElement("article");
     card.className = "mini";
+    card.dataset.id = post.id;
     if (hasPhoto(post)) {
       card.classList.add("photo");
       card.appendChild(photoBox("mini-photo", photoUrl(post)));
@@ -693,7 +707,7 @@
     const split = [[], []];
     all.forEach((p, i) => split[i % 2].push(p));
     cols.forEach((col, i) => {
-      const build = () => { fillTrack(col, split[i], i); col.classList.remove("refresh"); };
+      const build = () => { fillTrack(col, split[i], i); markSpotInColumns(); col.classList.remove("refresh"); };
       if (!col.dataset.built || reduceMotion) { build(); col.dataset.built = "1"; }
       else { col.classList.add("refresh"); setTimeout(build, 450); }
     });
