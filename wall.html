@@ -269,7 +269,7 @@
   .mini.photo { border-left: 0; }
   .mini.photo .msg { font-size: 19px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
 
-  /* Until there are enough posts to drift, columns show as quiet outlines */
+  /* A column with no posts shows as a quiet outline */
   .col-empty {
     position: absolute;
     inset: 0;
@@ -277,8 +277,9 @@
     border-radius: 8px;
     display: none;
   }
-  #stage.sparse .col-empty { display: block; }
-  #stage.sparse .track { display: none; }
+  .col.is-empty .col-empty { display: block; }
+  /* Columns that fit on screen sit still, so no edge fade is needed */
+  .col.still { -webkit-mask-image: none; mask-image: none; }
 
   @media (prefers-reduced-motion: reduce) {
     .spot, .col { transition: none; }
@@ -456,7 +457,6 @@
   const POOL = Math.max(1, EVENT.wallPool || 60);
   const DWELL = Math.max(4, EVENT.spotlightSeconds || 10) * 1000;
   const SPEED = Math.max(5, EVENT.driftSpeed || 22);         // px per second
-  const MIN_FOR_COLUMNS = Math.max(2, EVENT.minPostsForColumns || 4);
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   stage.style.setProperty("--dwell", `${DWELL / 1000}s`);
 
@@ -654,16 +654,26 @@
     const track = col.querySelector(".track");
     track.style.animation = "none";
     track.innerHTML = "";
+    col.classList.toggle("is-empty", !posts.length);
+    col.classList.remove("still");
     if (!posts.length) return;
 
-    // Repeat the set until it's taller than the column, then duplicate it
-    // once so the loop is seamless (the animation moves exactly one set).
+    // Everything fits: show the posts once and hold still
     const colH = col.offsetHeight;
-    let guard = 0;
-    do {
+    posts.forEach((p) => track.appendChild(buildMini(p)));
+    if (track.offsetHeight <= colH) {
+      col.classList.add("still");
+      return;
+    }
+
+    // Too many to fit: drift. Repeat the set until it's taller than the
+    // column, then duplicate it once so the loop is seamless (the animation
+    // moves exactly one set).
+    let guard = 1;
+    while (track.offsetHeight < colH && guard < 10) {
       posts.forEach((p) => track.appendChild(buildMini(p)));
       guard++;
-    } while (track.offsetHeight < colH && guard < 10);
+    }
     const setH = track.offsetHeight;
     [...track.children].forEach((c) => track.appendChild(c.cloneNode(true)));
 
@@ -679,10 +689,6 @@
     const key = all.map((p) => p.id).join("|");
     if (key === columnKey) return;
     columnKey = key;
-
-    const sparse = all.length < MIN_FOR_COLUMNS;
-    stage.classList.toggle("sparse", sparse);
-    if (sparse) { cols.forEach((c) => (c.querySelector(".track").innerHTML = "")); return; }
 
     const split = [[], []];
     all.forEach((p, i) => split[i % 2].push(p));
