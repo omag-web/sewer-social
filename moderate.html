@@ -664,7 +664,10 @@
   }
 
   onAuthStateChanged(auth, (user) => {
-    const inside = !!user;
+    // Only a real moderator login counts. The game (same site, same Firebase
+    // project) can leave a background anonymous sign-in in this browser;
+    // that must still show the sign-in form here, not an empty board.
+    const inside = !!user && !user.isAnonymous;
     $("signin").style.display = inside ? "none" : "block";
     $("board").classList.toggle("show", inside);
     $("toolbar").classList.toggle("show", inside);
